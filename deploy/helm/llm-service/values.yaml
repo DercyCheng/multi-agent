@@ -1,0 +1,21 @@
+replicaCount: 2
+
+image:
+  repository: multi-agent/llm-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources: {}
+
+ollama:
+  enabled: false
+  baseUrl: http://ollama:11434
+  models:
+    - mistral
+
+featureFlags:
+  ollama_enabled: false

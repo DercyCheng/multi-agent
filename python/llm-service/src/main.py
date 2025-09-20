@@ -23,6 +23,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from src.config import Settings
 from src.api.routes import completion, health, metrics, models
+from src.api.routes import flags as flags_router
+from src.feature_flags.manager import FeatureFlagManager
 from src.core.model_router import ModelRouter
 from src.core.context_engine import ContextEngine
 from src.core.token_manager import TokenManager
@@ -79,6 +81,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         
         logging.info("LLM Service initialized successfully")
         
+        feature_flags = FeatureFlagManager()
+        # Example: seed flags from env/settings if desired
+        await feature_flags.set_flag("ollama.enabled", settings.models.ollama.enabled)
         yield
         
     except Exception as e:
@@ -86,6 +91,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         raise
     
     # Shutdown
+        app.state.feature_flags = feature_flags
     logging.info("Shutting down Multi-Agent LLM Service")
     
     try:
@@ -134,6 +140,7 @@ def create_app() -> FastAPI:
     app.include_router(metrics.router, prefix="/metrics", tags=["metrics"])
     app.include_router(models.router, prefix="/models", tags=["models"])
     app.include_router(completion.router, prefix="/v1", tags=["completion"])
+    app.include_router(flags_router.router, prefix="/flags", tags=["flags"])
     
     # Global exception handler
     @app.exception_handler(Exception)

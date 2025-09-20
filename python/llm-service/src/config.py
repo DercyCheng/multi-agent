@@ -67,6 +67,14 @@ class ModelsConfig(BaseSettings):
         models=["gemini-pro", "gemini-pro-vision"]
     )
 
+    ollama: ModelProviderConfig = ModelProviderConfig(
+        name="ollama",
+        api_key=os.getenv("OLLAMA_API_KEY", ""),
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+        models=["mistral", "llama2", "vicuna"],
+        enabled=bool(os.getenv("OLLAMA_ENABLED", "false").lower() in ["1", "true", "yes"])  # default disabled
+    )
+
 class ContextConfig(BaseSettings):
     """Context engineering configuration"""
     max_context_length: int = Field(default=32000, env="MAX_CONTEXT_LENGTH")

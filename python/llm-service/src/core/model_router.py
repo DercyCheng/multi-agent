@@ -16,6 +16,7 @@ from src.providers.openai_provider import OpenAIProvider
 from src.providers.anthropic_provider import AnthropicProvider
 from src.providers.cohere_provider import CohereProvider
 from src.providers.google_provider import GoogleProvider
+from src.providers.ollama_provider import OllamaProvider
 from src.core.models import CompletionRequest, CompletionResponse, ModelInfo
 
 logger = logging.getLogger(__name__)
@@ -100,6 +101,7 @@ class ModelRouter:
             "anthropic": self.config.anthropic,
             "cohere": self.config.cohere,
             "google": self.config.google,
+            "ollama": self.config.ollama,
         }
         
         for name, config in provider_configs.items():
@@ -121,6 +123,8 @@ class ModelRouter:
             return CohereProvider(config)
         elif name == "google":
             return GoogleProvider(config)
+        elif name == "ollama":
+            return OllamaProvider(config)
         else:
             raise ValueError(f"Unknown provider: {name}")
     
