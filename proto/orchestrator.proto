@@ -1,0 +1,356 @@
+syntax = "proto3";
+
+package orchestrator;
+
+option go_package = "github.com/multi-agent/go/orchestrator/pkg/pb";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Orchestrator Service - Main workflow coordination service
+service OrchestratorService {
+  // Task Management
+  rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
+  rpc GetTaskStatus(GetTaskStatusRequest) returns (GetTaskStatusResponse);
+  rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  
+  // Session Management
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc GetSessionContext(GetSessionContextRequest) returns (GetSessionContextResponse);
+  rpc UpdateSessionContext(UpdateSessionContextRequest) returns (UpdateSessionContextResponse);
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+  
+  // Human-in-the-Loop
+  rpc ApproveTask(ApproveTaskRequest) returns (ApproveTaskResponse);
+  rpc GetPendingApprovals(GetPendingApprovalsRequest) returns (GetPendingApprovalsResponse);
+  
+  // Budget Management
+  rpc GetTokenBudget(GetTokenBudgetRequest) returns (GetTokenBudgetResponse);
+  rpc UpdateTokenBudget(UpdateTokenBudgetRequest) returns (UpdateTokenBudgetResponse);
+  
+  // Health Check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Task submission and management
+message SubmitTaskRequest {
+  TaskMetadata metadata = 1;
+  string query = 2;
+  google.protobuf.Struct context = 3;
+  bool auto_decompose = 4;
+  TaskDecomposition manual_decomposition = 5;
+  SessionContext session_context = 6;
+}
+
+message SubmitTaskResponse {
+  string workflow_id = 1;
+  string task_id = 2;
+  TaskStatus status = 3;
+  google.protobuf.Timestamp estimated_completion = 4;
+  TokenEstimate token_estimate = 5;
+}
+
+message GetTaskStatusRequest {
+  string workflow_id = 1;
+  string task_id = 2;
+  bool include_details = 3;
+}
+
+message GetTaskStatusResponse {
+  string workflow_id = 1;
+  string task_id = 2;
+  TaskStatus status = 3;
+  string result = 4;
+  repeated AgentExecution agent_executions = 5;
+  TokenUsage token_usage = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp completed_at = 8;
+  google.protobuf.Struct metadata = 9;
+}
+
+message CancelTaskRequest {
+  string workflow_id = 1;
+  string task_id = 2;
+  string reason = 3;
+}
+
+message CancelTaskResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListTasksRequest {
+  string user_id = 1;
+  string session_id = 2;
+  TaskStatus status_filter = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+message ListTasksResponse {
+  repeated TaskSummary tasks = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// Session management
+message CreateSessionRequest {
+  string user_id = 1;
+  google.protobuf.Struct initial_context = 2;
+  int32 token_budget = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message CreateSessionResponse {
+  string session_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message GetSessionContextRequest {
+  string session_id = 1;
+  bool include_history = 2;
+}
+
+message GetSessionContextResponse {
+  string session_id = 1;
+  google.protobuf.Struct context = 2;
+  repeated TaskSummary task_history = 3;
+  TokenUsage token_usage = 4;
+}
+
+message UpdateSessionContextRequest {
+  string session_id = 1;
+  google.protobuf.Struct context_update = 2;
+  bool merge = 3;
+}
+
+message UpdateSessionContextResponse {
+  bool success = 1;
+  google.protobuf.Struct updated_context = 2;
+}
+
+message CloseSessionRequest {
+  string session_id = 1;
+  string reason = 2;
+}
+
+message CloseSessionResponse {
+  bool success = 1;
+  SessionSummary summary = 2;
+}
+
+// Human approval workflow
+message ApproveTaskRequest {
+  string approval_id = 1;
+  bool approved = 2;
+  string feedback = 3;
+  google.protobuf.Struct additional_context = 4;
+}
+
+message ApproveTaskResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetPendingApprovalsRequest {
+  string user_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message GetPendingApprovalsResponse {
+  repeated PendingApproval approvals = 1;
+  string next_page_token = 2;
+}
+
+// Budget management
+message GetTokenBudgetRequest {
+  string user_id = 1;
+  string session_id = 2;
+}
+
+message GetTokenBudgetResponse {
+  int32 total_budget = 1;
+  int32 used_tokens = 2;
+  int32 remaining_tokens = 3;
+  double cost_usd = 4;
+  google.protobuf.Timestamp reset_at = 5;
+}
+
+message UpdateTokenBudgetRequest {
+  string user_id = 1;
+  int32 new_budget = 2;
+  string reason = 3;
+}
+
+message UpdateTokenBudgetResponse {
+  bool success = 1;
+  int32 updated_budget = 2;
+}
+
+// Health check
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  HealthStatus status = 1;
+  string message = 2;
+  google.protobuf.Struct details = 3;
+}
+
+// Common data structures
+message TaskMetadata {
+  string user_id = 1;
+  string tenant_id = 2;
+  string task_type = 3;
+  Priority priority = 4;
+  repeated string tags = 5;
+  google.protobuf.Struct custom_metadata = 6;
+}
+
+message TaskDecomposition {
+  ExecutionMode mode = 1;
+  double complexity_score = 2;
+  repeated AgentTask agent_tasks = 3;
+  DAGStructure dag = 4;
+}
+
+message AgentTask {
+  string agent_id = 1;
+  string query = 2;
+  google.protobuf.Struct context = 3;
+  repeated string required_tools = 4;
+  repeated string dependencies = 5;
+  int32 estimated_tokens = 6;
+}
+
+message DAGStructure {
+  repeated DAGNode nodes = 1;
+  repeated DAGEdge edges = 2;
+}
+
+message DAGNode {
+  string id = 1;
+  string agent_id = 2;
+  google.protobuf.Struct properties = 3;
+}
+
+message DAGEdge {
+  string from_id = 1;
+  string to_id = 2;
+  EdgeType type = 3;
+}
+
+message SessionContext {
+  string session_id = 1;
+  string user_id = 2;
+  google.protobuf.Struct context = 3;
+  int32 token_budget = 4;
+  int32 tokens_used = 5;
+}
+
+message AgentExecution {
+  string agent_id = 1;
+  string query = 2;
+  TaskStatus status = 3;
+  string result = 4;
+  string model_used = 5;
+  string provider = 6;
+  int32 tokens_used = 7;
+  double cost_usd = 8;
+  int32 execution_time_ms = 9;
+  int32 tool_calls_count = 10;
+  google.protobuf.Timestamp started_at = 11;
+  google.protobuf.Timestamp completed_at = 12;
+  google.protobuf.Struct metadata = 13;
+}
+
+message TokenEstimate {
+  int32 estimated_tokens = 1;
+  double estimated_cost_usd = 2;
+  string confidence = 3;
+}
+
+message TokenUsage {
+  int32 total_tokens = 1;
+  int32 prompt_tokens = 2;
+  int32 completion_tokens = 3;
+  double total_cost_usd = 4;
+  repeated ProviderUsage provider_breakdown = 5;
+}
+
+message ProviderUsage {
+  string provider = 1;
+  string model = 2;
+  int32 tokens = 3;
+  double cost_usd = 4;
+}
+
+message TaskSummary {
+  string workflow_id = 1;
+  string task_id = 2;
+  string query = 3;
+  TaskStatus status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  TokenUsage token_usage = 7;
+}
+
+message SessionSummary {
+  string session_id = 1;
+  int32 total_tasks = 2;
+  TokenUsage total_token_usage = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp closed_at = 5;
+}
+
+message PendingApproval {
+  string approval_id = 1;
+  string workflow_id = 2;
+  string task_description = 3;
+  string risk_level = 4;
+  google.protobuf.Struct context = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// Enums
+enum TaskStatus {
+  TASK_STATUS_UNKNOWN = 0;
+  TASK_STATUS_PENDING = 1;
+  TASK_STATUS_RUNNING = 2;
+  TASK_STATUS_COMPLETED = 3;
+  TASK_STATUS_FAILED = 4;
+  TASK_STATUS_CANCELLED = 5;
+  TASK_STATUS_WAITING_APPROVAL = 6;
+}
+
+enum ExecutionMode {
+  EXECUTION_MODE_UNKNOWN = 0;
+  EXECUTION_MODE_SINGLE = 1;
+  EXECUTION_MODE_PARALLEL = 2;
+  EXECUTION_MODE_SEQUENTIAL = 3;
+  EXECUTION_MODE_HYBRID = 4;
+}
+
+enum Priority {
+  PRIORITY_UNKNOWN = 0;
+  PRIORITY_LOW = 1;
+  PRIORITY_NORMAL = 2;
+  PRIORITY_HIGH = 3;
+  PRIORITY_URGENT = 4;
+}
+
+enum EdgeType {
+  EDGE_TYPE_UNKNOWN = 0;
+  EDGE_TYPE_DEPENDENCY = 1;
+  EDGE_TYPE_DATA_FLOW = 2;
+  EDGE_TYPE_CONTROL_FLOW = 3;
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNKNOWN = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}

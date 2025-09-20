@@ -1,0 +1,94 @@
+[package]
+name = "agent-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Multi-Agent Team <team@multi-agent.com>"]
+description = "Multi-Agent Platform Core Execution Engine"
+license = "MIT"
+
+[dependencies]
+# WASI and WebAssembly runtime
+wasmtime = { version = "15.0", features = ["component-model", "async"] }
+wasmtime-wasi = "15.0"
+wasi-common = "15.0"
+
+# Async runtime and utilities
+tokio = { version = "1.35", features = ["full"] }
+tokio-util = "0.7"
+futures = "0.3"
+
+# Serialization and data handling
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# HTTP and gRPC
+tonic = "0.10"
+tonic-build = "0.10"
+prost = "0.12"
+hyper = { version = "0.14", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.4", features = ["cors", "trace"] }
+
+# Security and policy enforcement
+opa-wasm = "0.2"
+ring = "0.17"
+rustls = "0.21"
+
+# Logging and observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.21"
+opentelemetry = { version = "0.20", features = ["rt-tokio"] }
+opentelemetry-jaeger = { version = "0.19", features = ["rt-tokio"] }
+
+# Metrics
+prometheus = "0.13"
+metrics = "0.21"
+metrics-exporter-prometheus = "0.12"
+
+# Configuration and environment
+config = "0.13"
+envy = "0.4"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Utilities
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+bytes = "1.5"
+dashmap = "5.5"
+
+# Resource management
+cap-std = "2.0"
+cap-fs-ext = "2.0"
+
+# State machine
+serde_state_machine = "0.2"
+
+[build-dependencies]
+tonic-build = "0.10"
+
+[dev-dependencies]
+tempfile = "3.8"
+criterion = "0.5"
+
+[[bin]]
+name = "agent-core"
+path = "src/main.rs"
+
+[[bench]]
+name = "execution_benchmark"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true

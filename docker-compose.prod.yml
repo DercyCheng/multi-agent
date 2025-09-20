@@ -1,0 +1,358 @@
+# Multi-Agent Platform Docker Compose Configuration
+# Enhanced with monitoring, observability, and complete service orchestration
+
+version: '3.8'
+
+networks:
+  multiagent-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  temporal_data:
+  prometheus_data:
+  grafana_data:
+
+services:
+  # ==============================================================================
+  # INFRASTRUCTURE SERVICES
+  # ==============================================================================
+  
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: multiagent-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-multiagent}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/postgres:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: multiagent-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: multiagent-qdrant
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT__LOG_LEVEL: INFO
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Temporal Workflow Engine
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: multiagent-temporal
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    volumes:
+      - temporal_data:/etc/temporal
+    ports:
+      - "${TEMPORAL_PORT:-7233}:7233"
+      - "8233:8233"  # Web UI
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "tctl", "cluster", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ==============================================================================
+  # MONITORING & OBSERVABILITY
+  # ==============================================================================
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: multiagent-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: multiagent-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Jaeger Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: multiagent-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    ports:
+      - "16686:16686"  # Web UI
+      - "14250:14250"  # gRPC
+      - "14268:14268"  # HTTP
+      - "6831:6831/udp"  # UDP
+      - "6832:6832/udp"  # UDP
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:14269/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ==============================================================================
+  # CORE APPLICATION SERVICES
+  # ==============================================================================
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./go/api-gateway
+      dockerfile: Dockerfile
+    container_name: multiagent-gateway
+    environment:
+      - GATEWAY_PORT=${GATEWAY_PORT:-8080}
+      - GATEWAY_MODE=${ENVIRONMENT:-production}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB:-4}
+      - ORCHESTRATOR_URL=http://orchestrator:8081
+      - LLM_SERVICE_URL=http://llm-service:8000
+      - AGENT_CORE_URL=http://agent-core:8082
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - METRICS_ENABLED=true
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - CORS_ENABLED=true
+      - RATE_LIMIT_ENABLED=true
+      - REQUESTS_PER_MINUTE=${REQUESTS_PER_MINUTE:-60}
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+      - "9091:9090"  # Metrics port
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # Orchestrator Service
+  orchestrator:
+    build:
+      context: ./go/orchestrator
+      dockerfile: Dockerfile
+    container_name: multiagent-orchestrator
+    environment:
+      - PORT=${ORCHESTRATOR_PORT:-8081}
+      - GRPC_PORT=${ORCHESTRATOR_GRPC_PORT:-50052}
+      - POSTGRES_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-multiagent}?sslmode=disable
+      - REDIS_URL=redis://redis:6379/${REDIS_DB:-0}
+      - TEMPORAL_HOST=temporal:7233
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE:-multi-agent}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - AGENT_CORE_URL=http://agent-core:8082
+      - LLM_SERVICE_URL=http://llm-service:8000
+      - MAX_PARALLEL_AGENTS=${MAX_PARALLEL_AGENTS:-5}
+      - DEFAULT_TOKEN_LIMIT=${DEFAULT_TOKEN_LIMIT:-10000}
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - PROMETHEUS_METRICS=true
+    ports:
+      - "${ORCHESTRATOR_PORT:-8081}:8081"
+      - "${ORCHESTRATOR_GRPC_PORT:-50052}:50052"
+      - "9092:9090"  # Metrics port
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  # Agent Core Service
+  agent-core:
+    build:
+      context: ./rust/agent-core
+      dockerfile: Dockerfile
+    container_name: multiagent-agent-core
+    environment:
+      - RUST_LOG=${LOG_LEVEL:-info}
+      - PORT=${AGENT_CORE_PORT:-8082}
+      - GRPC_PORT=${AGENT_CORE_GRPC_PORT:-50051}
+      - LLM_SERVICE_URL=http://llm-service:8000
+      - REDIS_URL=redis://redis:6379/${REDIS_DB:-1}
+      - QDRANT_URL=http://qdrant:6333
+      - ENFORCE_TIMEOUT_SECONDS=${ENFORCE_TIMEOUT_SECONDS:-30}
+      - ENFORCE_MAX_TOKENS=${ENFORCE_MAX_TOKENS:-100000}
+      - ENFORCE_RATE_LIMIT_PER_KEY=${ENFORCE_RATE_LIMIT_PER_KEY:-1000}
+      - WASI_MEMORY_LIMIT_MB=${WASI_MEMORY_LIMIT_MB:-256}
+      - WASI_CPU_TIMEOUT_SECONDS=${WASI_CPU_TIMEOUT_SECONDS:-30}
+      - MEMORY_POOL_INITIAL_SIZE_MB=${MEMORY_POOL_INITIAL_SIZE_MB:-64}
+      - MEMORY_POOL_MAX_SIZE_MB=${MEMORY_POOL_MAX_SIZE_MB:-512}
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - PROMETHEUS_METRICS=true
+    ports:
+      - "${AGENT_CORE_PORT:-8082}:8082"
+      - "${AGENT_CORE_GRPC_PORT:-50051}:50051"
+      - "9093:9090"  # Metrics port
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # LLM Service
+  llm-service:
+    build:
+      context: ./python/llm-service
+      dockerfile: Dockerfile
+    container_name: multiagent-llm-service
+    environment:
+      - PORT=${LLM_SERVICE_PORT:-8000}
+      - WORKERS=${LLM_SERVICE_WORKERS:-4}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB:-2}
+      - QDRANT_URL=http://qdrant:6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - MAX_COST_PER_REQUEST=${MAX_COST_PER_REQUEST:-0.10}
+      - DAILY_BUDGET_USD=${DAILY_BUDGET_USD:-100.0}
+      - PROMPT_CACHE_ENABLED=${PROMPT_CACHE_ENABLED:-true}
+      - PROMPT_CACHE_TTL_SECONDS=${PROMPT_CACHE_TTL_SECONDS:-3600}
+      - MCP_REGISTER_TOKEN=${MCP_REGISTER_TOKEN:-}
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - PROMETHEUS_METRICS=true
+    ports:
+      - "${LLM_SERVICE_PORT:-8000}:8000"
+      - "9094:9090"  # Metrics port
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - multiagent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped

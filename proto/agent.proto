@@ -1,0 +1,445 @@
+syntax = "proto3";
+
+package agent;
+
+option go_package = "github.com/multi-agent/rust/agent-core/pkg/pb";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Agent Core Service - Secure execution environment
+service AgentService {
+  // Task Execution
+  rpc ExecuteTask(ExecuteTaskRequest) returns (ExecuteTaskResponse);
+  rpc StreamExecuteTask(ExecuteTaskRequest) returns (stream TaskUpdate);
+  
+  // Capability Discovery
+  rpc GetCapabilities(GetCapabilitiesRequest) returns (GetCapabilitiesResponse);
+  rpc DiscoverTools(DiscoverToolsRequest) returns (DiscoverToolsResponse);
+  rpc GetToolCapability(GetToolCapabilityRequest) returns (GetToolCapabilityResponse);
+  
+  // Memory Management
+  rpc StoreMemory(StoreMemoryRequest) returns (StoreMemoryResponse);
+  rpc RetrieveMemory(RetrieveMemoryRequest) returns (RetrieveMemoryResponse);
+  rpc SearchMemory(SearchMemoryRequest) returns (SearchMemoryResponse);
+  
+  // Sandbox Management
+  rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
+  rpc ExecuteCode(ExecuteCodeRequest) returns (ExecuteCodeResponse);
+  rpc DestroySandbox(DestroySandboxRequest) returns (DestroySandboxResponse);
+  
+  // Health Check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Task execution
+message ExecuteTaskRequest {
+  TaskMetadata metadata = 1;
+  string query = 2;
+  google.protobuf.Struct context = 3;
+  ExecutionMode mode = 4;
+  repeated string available_tools = 5;
+  AgentConfig config = 6;
+  SessionContext session_context = 7;
+  SecurityPolicy security_policy = 8;
+}
+
+message ExecuteTaskResponse {
+  string task_id = 1;
+  ExecutionStatus status = 2;
+  string result = 3;
+  repeated ToolExecution tool_executions = 4;
+  ExecutionMetrics metrics = 5;
+  repeated string artifacts = 6;
+  google.protobuf.Struct metadata = 7;
+}
+
+message TaskUpdate {
+  string task_id = 1;
+  ExecutionStatus status = 2;
+  string progress_message = 3;
+  double progress_percentage = 4;
+  google.protobuf.Struct data = 5;
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+// Capability discovery
+message GetCapabilitiesRequest {
+  bool include_tools = 1;
+  bool include_models = 2;
+  string category_filter = 3;
+}
+
+message GetCapabilitiesResponse {
+  repeated AgentCapability capabilities = 1;
+  repeated ToolCapability tool_capabilities = 2;
+  repeated ModelCapability model_capabilities = 3;
+  string agent_version = 4;
+}
+
+message DiscoverToolsRequest {
+  string task_description = 1;
+  google.protobuf.Struct context = 2;
+  bool exclude_dangerous = 3;
+  int32 max_tools = 4;
+  repeated string categories = 5;
+}
+
+message DiscoverToolsResponse {
+  repeated RecommendedTool tools = 1;
+  double confidence_score = 2;
+  string reasoning = 3;
+}
+
+message GetToolCapabilityRequest {
+  string tool_name = 1;
+  string version = 2;
+}
+
+message GetToolCapabilityResponse {
+  ToolCapability capability = 1;
+  repeated ToolExample examples = 2;
+  ToolDocumentation documentation = 3;
+}
+
+// Memory management
+message StoreMemoryRequest {
+  string session_id = 1;
+  MemoryType type = 2;
+  string content = 3;
+  google.protobuf.Struct metadata = 4;
+  repeated string tags = 5;
+  double importance_score = 6;
+}
+
+message StoreMemoryResponse {
+  string memory_id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message RetrieveMemoryRequest {
+  string memory_id = 1;
+  string session_id = 2;
+}
+
+message RetrieveMemoryResponse {
+  MemoryEntry memory = 1;
+  bool found = 2;
+}
+
+message SearchMemoryRequest {
+  string session_id = 1;
+  string query = 2;
+  MemoryType type_filter = 3;
+  int32 limit = 4;
+  double similarity_threshold = 5;
+  repeated string tag_filters = 6;
+}
+
+message SearchMemoryResponse {
+  repeated MemoryEntry memories = 1;
+  repeated double similarity_scores = 2;
+}
+
+// Sandbox management
+message CreateSandboxRequest {
+  SandboxConfig config = 1;
+  string session_id = 2;
+  repeated string allowed_imports = 3;
+  google.protobuf.Struct environment_vars = 4;
+}
+
+message CreateSandboxResponse {
+  string sandbox_id = 1;
+  bool success = 2;
+  string message = 3;
+  SandboxLimits limits = 4;
+}
+
+message ExecuteCodeRequest {
+  string sandbox_id = 1;
+  string code = 2;
+  string language = 3;
+  google.protobuf.Struct input_data = 4;
+  int32 timeout_seconds = 5;
+}
+
+message ExecuteCodeResponse {
+  string execution_id = 1;
+  ExecutionStatus status = 2;
+  string stdout = 3;
+  string stderr = 4;
+  google.protobuf.Struct output_data = 5;
+  ExecutionMetrics metrics = 6;
+  repeated string artifacts = 7;
+}
+
+message DestroySandboxRequest {
+  string sandbox_id = 1;
+  bool force = 2;
+}
+
+message DestroySandboxResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Health check
+message HealthCheckRequest {
+  bool deep_check = 1;
+}
+
+message HealthCheckResponse {
+  HealthStatus status = 1;
+  string message = 2;
+  SystemInfo system_info = 3;
+  repeated ComponentHealth component_health = 4;
+}
+
+// Data structures
+message TaskMetadata {
+  string user_id = 1;
+  string tenant_id = 2;
+  string task_type = 3;
+  Priority priority = 4;
+  repeated string tags = 5;
+  google.protobuf.Struct custom_metadata = 6;
+}
+
+message AgentConfig {
+  string model_preference = 1;
+  double creativity_level = 2;
+  int32 max_iterations = 3;
+  bool enable_reflection = 4;
+  repeated string preferred_tools = 5;
+  SecurityLevel security_level = 6;
+  google.protobuf.Struct custom_settings = 7;
+}
+
+message SessionContext {
+  string session_id = 1;
+  string user_id = 2;
+  google.protobuf.Struct context = 3;
+  repeated string conversation_history = 4;
+  int32 token_budget = 5;
+  int32 tokens_used = 6;
+}
+
+message SecurityPolicy {
+  bool allow_code_execution = 1;
+  bool allow_file_access = 2;
+  bool allow_network_access = 3;
+  repeated string allowed_domains = 4;
+  repeated string blocked_tools = 5;
+  SecurityLevel required_approval_level = 6;
+}
+
+message ToolExecution {
+  string tool_name = 1;
+  google.protobuf.Struct parameters = 2;
+  string result = 3;
+  ExecutionStatus status = 4;
+  int32 execution_time_ms = 5;
+  double cost = 6;
+  string error_message = 7;
+}
+
+message ExecutionMetrics {
+  int32 total_time_ms = 1;
+  int32 cpu_time_ms = 2;
+  int32 memory_used_mb = 3;
+  int32 tokens_consumed = 4;
+  double total_cost_usd = 5;
+  int32 tool_calls = 6;
+  int32 llm_calls = 7;
+  repeated string resource_usage = 8;
+}
+
+message AgentCapability {
+  string name = 1;
+  string description = 2;
+  CapabilityType type = 3;
+  string version = 4;
+  repeated string supported_languages = 5;
+  repeated string requirements = 6;
+}
+
+message ToolCapability {
+  string name = 1;
+  string description = 2;
+  string category = 3;
+  string version = 4;
+  repeated ToolParameter parameters = 5;
+  ToolSafety safety_level = 6;
+  bool requires_approval = 7;
+  double cost_per_use = 8;
+}
+
+message ModelCapability {
+  string name = 1;
+  string provider = 2;
+  repeated string supported_tasks = 3;
+  int32 context_length = 4;
+  bool supports_tools = 5;
+  bool supports_vision = 6;
+  double cost_per_token = 7;
+}
+
+message RecommendedTool {
+  string tool_name = 1;
+  double relevance_score = 2;
+  string reasoning = 3;
+  ToolCapability capability = 4;
+  repeated string suggested_parameters = 5;
+}
+
+message ToolExample {
+  string description = 1;
+  google.protobuf.Struct input_parameters = 2;
+  string expected_output = 3;
+  string use_case = 4;
+}
+
+message ToolDocumentation {
+  string description = 1;
+  string usage_guide = 2;
+  repeated ToolParameter parameters = 3;
+  repeated ToolExample examples = 4;
+  repeated string limitations = 5;
+}
+
+message ToolParameter {
+  string name = 1;
+  string type = 2;
+  string description = 3;
+  bool required = 4;
+  google.protobuf.Struct default_value = 5;
+  repeated string enum_values = 6;
+  ParameterValidation validation = 7;
+}
+
+message ParameterValidation {
+  string pattern = 1;
+  double min_value = 2;
+  double max_value = 3;
+  int32 min_length = 4;
+  int32 max_length = 5;
+}
+
+message MemoryEntry {
+  string memory_id = 1;
+  MemoryType type = 2;
+  string content = 3;
+  google.protobuf.Struct metadata = 4;
+  repeated string tags = 5;
+  double importance_score = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp accessed_at = 8;
+  int32 access_count = 9;
+}
+
+message SandboxConfig {
+  int32 memory_limit_mb = 1;
+  int32 cpu_limit_percent = 2;
+  int32 timeout_seconds = 3;
+  bool network_access = 4;
+  bool file_system_access = 5;
+  repeated string allowed_imports = 6;
+  SecurityLevel security_level = 7;
+}
+
+message SandboxLimits {
+  int32 max_memory_mb = 1;
+  int32 max_cpu_percent = 2;
+  int32 max_execution_time = 3;
+  int32 max_file_size_mb = 4;
+  int32 max_network_requests = 5;
+}
+
+message SystemInfo {
+  string version = 1;
+  string build_date = 2;
+  string rust_version = 3;
+  int32 available_memory_mb = 4;
+  int32 cpu_cores = 5;
+  string os_info = 6;
+  int32 active_sandboxes = 7;
+  int32 active_sessions = 8;
+}
+
+message ComponentHealth {
+  string component = 1;
+  HealthStatus status = 2;
+  string message = 3;
+  google.protobuf.Timestamp last_check = 4;
+  google.protobuf.Struct details = 5;
+}
+
+// Enums
+enum ExecutionStatus {
+  EXECUTION_STATUS_UNKNOWN = 0;
+  EXECUTION_STATUS_PENDING = 1;
+  EXECUTION_STATUS_RUNNING = 2;
+  EXECUTION_STATUS_COMPLETED = 3;
+  EXECUTION_STATUS_FAILED = 4;
+  EXECUTION_STATUS_CANCELLED = 5;
+  EXECUTION_STATUS_TIMEOUT = 6;
+}
+
+enum ExecutionMode {
+  EXECUTION_MODE_UNKNOWN = 0;
+  EXECUTION_MODE_SAFE = 1;
+  EXECUTION_MODE_SANDBOX = 2;
+  EXECUTION_MODE_ISOLATED = 3;
+  EXECUTION_MODE_PRIVILEGED = 4;
+}
+
+enum Priority {
+  PRIORITY_UNKNOWN = 0;
+  PRIORITY_LOW = 1;
+  PRIORITY_NORMAL = 2;
+  PRIORITY_HIGH = 3;
+  PRIORITY_URGENT = 4;
+}
+
+enum SecurityLevel {
+  SECURITY_LEVEL_UNKNOWN = 0;
+  SECURITY_LEVEL_PUBLIC = 1;
+  SECURITY_LEVEL_INTERNAL = 2;
+  SECURITY_LEVEL_CONFIDENTIAL = 3;
+  SECURITY_LEVEL_RESTRICTED = 4;
+}
+
+enum MemoryType {
+  MEMORY_TYPE_UNKNOWN = 0;
+  MEMORY_TYPE_CONVERSATION = 1;
+  MEMORY_TYPE_KNOWLEDGE = 2;
+  MEMORY_TYPE_PROCEDURE = 3;
+  MEMORY_TYPE_EPISODIC = 4;
+  MEMORY_TYPE_SEMANTIC = 5;
+}
+
+enum CapabilityType {
+  CAPABILITY_TYPE_UNKNOWN = 0;
+  CAPABILITY_TYPE_REASONING = 1;
+  CAPABILITY_TYPE_TOOL_USE = 2;
+  CAPABILITY_TYPE_CODE_EXECUTION = 3;
+  CAPABILITY_TYPE_MEMORY = 4;
+  CAPABILITY_TYPE_PLANNING = 5;
+}
+
+enum ToolSafety {
+  TOOL_SAFETY_UNKNOWN = 0;
+  TOOL_SAFETY_SAFE = 1;
+  TOOL_SAFETY_CAUTION = 2;
+  TOOL_SAFETY_DANGEROUS = 3;
+  TOOL_SAFETY_RESTRICTED = 4;
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNKNOWN = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}

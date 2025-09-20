@@ -1,0 +1,491 @@
+syntax = "proto3";
+
+package llm;
+
+option go_package = "github.com/multi-agent/python/llm-service/pkg/pb";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// LLM Service - Large Language Model integration service
+service LLMService {
+  // Text Generation
+  rpc GenerateCompletion(GenerateCompletionRequest) returns (GenerateCompletionResponse);
+  rpc StreamCompletion(GenerateCompletionRequest) returns (stream CompletionChunk);
+  
+  // Embeddings
+  rpc GenerateEmbedding(GenerateEmbeddingRequest) returns (GenerateEmbeddingResponse);
+  rpc BatchGenerateEmbeddings(BatchGenerateEmbeddingsRequest) returns (BatchGenerateEmbeddingsResponse);
+  
+  // Model Management
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+  rpc GetModelInfo(GetModelInfoRequest) returns (GetModelInfoResponse);
+  rpc GetModelHealth(GetModelHealthRequest) returns (GetModelHealthResponse);
+  
+  // Cost and Usage
+  rpc GetUsageStats(GetUsageStatsRequest) returns (GetUsageStatsResponse);
+  rpc EstimateCost(EstimateCostRequest) returns (EstimateCostResponse);
+  
+  // Cache Management
+  rpc GetCacheStats(GetCacheStatsRequest) returns (GetCacheStatsResponse);
+  rpc ClearCache(ClearCacheRequest) returns (ClearCacheResponse);
+  
+  // Tools and Functions
+  rpc ListAvailableTools(ListAvailableToolsRequest) returns (ListAvailableToolsResponse);
+  rpc ExecuteTool(ExecuteToolRequest) returns (ExecuteToolResponse);
+  
+  // Complexity Analysis
+  rpc AnalyzeComplexity(AnalyzeComplexityRequest) returns (AnalyzeComplexityResponse);
+  
+  // Health Check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Text generation
+message GenerateCompletionRequest {
+  repeated Message messages = 1;
+  ModelTier tier = 2;
+  string specific_model = 3;
+  GenerationConfig config = 4;
+  repeated ToolDefinition available_tools = 5;
+  UserContext user_context = 6;
+  CachePolicy cache_policy = 7;
+}
+
+message GenerateCompletionResponse {
+  string completion_id = 1;
+  string content = 2;
+  string model_used = 3;
+  string provider = 4;
+  TokenUsage token_usage = 5;
+  double cost_usd = 6;
+  CompletionMetadata metadata = 7;
+  repeated ToolCall tool_calls = 8;
+  FinishReason finish_reason = 9;
+}
+
+message CompletionChunk {
+  string completion_id = 1;
+  string delta = 2;
+  bool is_final = 3;
+  TokenUsage token_usage = 4;
+  repeated ToolCall tool_calls = 5;
+  FinishReason finish_reason = 6;
+}
+
+// Embeddings
+message GenerateEmbeddingRequest {
+  string text = 1;
+  string model = 2;
+  UserContext user_context = 3;
+  bool normalize = 4;
+}
+
+message GenerateEmbeddingResponse {
+  string embedding_id = 1;
+  repeated float embedding = 2;
+  string model_used = 3;
+  TokenUsage token_usage = 4;
+  double cost_usd = 5;
+}
+
+message BatchGenerateEmbeddingsRequest {
+  repeated string texts = 1;
+  string model = 2;
+  UserContext user_context = 3;
+  bool normalize = 4;
+  int32 batch_size = 5;
+}
+
+message BatchGenerateEmbeddingsResponse {
+  repeated EmbeddingResult embeddings = 1;
+  TokenUsage total_token_usage = 2;
+  double total_cost_usd = 3;
+  string model_used = 4;
+}
+
+// Model management
+message ListModelsRequest {
+  string provider_filter = 1;
+  ModelTier tier_filter = 2;
+  bool include_deprecated = 3;
+}
+
+message ListModelsResponse {
+  repeated ModelInfo models = 1;
+  google.protobuf.Timestamp last_updated = 2;
+}
+
+message GetModelInfoRequest {
+  string model_id = 1;
+  string provider = 2;
+}
+
+message GetModelInfoResponse {
+  ModelInfo model_info = 1;
+  ModelCapabilities capabilities = 2;
+  ModelPricing pricing = 3;
+  ModelLimits limits = 4;
+}
+
+message GetModelHealthRequest {
+  string model_id = 1;
+  string provider = 2;
+}
+
+message GetModelHealthResponse {
+  HealthStatus status = 1;
+  double response_time_ms = 2;
+  double success_rate = 3;
+  google.protobuf.Timestamp last_check = 4;
+  string message = 5;
+}
+
+// Usage and cost tracking
+message GetUsageStatsRequest {
+  string user_id = 1;
+  string tenant_id = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+  string granularity = 5; // hour, day, week, month
+}
+
+message GetUsageStatsResponse {
+  repeated UsagePeriod usage_periods = 1;
+  UsageSummary total_summary = 2;
+  repeated ProviderUsage provider_breakdown = 3;
+}
+
+message EstimateCostRequest {
+  repeated Message messages = 1;
+  string model = 2;
+  GenerationConfig config = 3;
+}
+
+message EstimateCostResponse {
+  int32 estimated_prompt_tokens = 1;
+  int32 estimated_completion_tokens = 2;
+  int32 estimated_total_tokens = 3;
+  double estimated_cost_usd = 4;
+  string confidence = 5;
+}
+
+// Cache management
+message GetCacheStatsRequest {
+  string cache_type = 1; // prompt, embedding, tool
+}
+
+message GetCacheStatsResponse {
+  int32 total_entries = 1;
+  int32 cache_hits = 2;
+  int32 cache_misses = 3;
+  double hit_rate = 4;
+  int64 memory_usage_bytes = 5;
+  google.protobuf.Timestamp last_cleanup = 6;
+}
+
+message ClearCacheRequest {
+  string cache_type = 1;
+  bool force = 2;
+}
+
+message ClearCacheResponse {
+  bool success = 1;
+  int32 entries_cleared = 2;
+  string message = 3;
+}
+
+// Tools
+message ListAvailableToolsRequest {
+  string category_filter = 1;
+  bool include_dangerous = 2;
+  UserContext user_context = 3;
+}
+
+message ListAvailableToolsResponse {
+  repeated ToolDefinition tools = 1;
+  repeated string categories = 2;
+}
+
+message ExecuteToolRequest {
+  string tool_name = 1;
+  google.protobuf.Struct parameters = 2;
+  UserContext user_context = 3;
+  int32 timeout_seconds = 4;
+}
+
+message ExecuteToolResponse {
+  string execution_id = 1;
+  ExecutionStatus status = 2;
+  google.protobuf.Struct result = 3;
+  string error_message = 4;
+  int32 execution_time_ms = 5;
+  double cost_usd = 6;
+  repeated string artifacts = 7;
+}
+
+// Complexity analysis
+message AnalyzeComplexityRequest {
+  string query = 1;
+  google.protobuf.Struct context = 2;
+}
+
+message AnalyzeComplexityResponse {
+  double complexity_score = 1;
+  ComplexityLevel level = 2;
+  string reasoning = 3;
+  repeated string required_capabilities = 4;
+  int32 estimated_tokens = 5;
+  double estimated_cost_usd = 6;
+  RecommendedStrategy strategy = 7;
+}
+
+// Health check
+message HealthCheckRequest {
+  bool include_models = 1;
+  bool include_tools = 2;
+}
+
+message HealthCheckResponse {
+  HealthStatus status = 1;
+  string message = 2;
+  repeated ModelHealthStatus model_status = 3;
+  repeated ToolHealthStatus tool_status = 4;
+  SystemMetrics system_metrics = 5;
+}
+
+// Data structures
+message Message {
+  string role = 1; // system, user, assistant, tool
+  string content = 2;
+  string name = 3;
+  repeated ToolCall tool_calls = 4;
+  string tool_call_id = 5;
+}
+
+message GenerationConfig {
+  double temperature = 1;
+  int32 max_tokens = 2;
+  double top_p = 3;
+  double frequency_penalty = 4;
+  double presence_penalty = 5;
+  repeated string stop_sequences = 6;
+  bool stream = 7;
+  int32 seed = 8;
+  string response_format = 9; // text, json
+}
+
+message ToolDefinition {
+  string name = 1;
+  string description = 2;
+  string category = 3;
+  google.protobuf.Struct schema = 4;
+  bool requires_approval = 5;
+  ToolSafety safety_level = 6;
+  double cost_per_use = 7;
+  repeated string tags = 8;
+}
+
+message ToolCall {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Struct arguments = 3;
+}
+
+message UserContext {
+  string user_id = 1;
+  string tenant_id = 2;
+  string session_id = 3;
+  google.protobuf.Struct metadata = 4;
+  repeated string permissions = 5;
+  BudgetLimits budget_limits = 6;
+}
+
+message CachePolicy {
+  bool enable_cache = 1;
+  int32 ttl_seconds = 2;
+  double similarity_threshold = 3;
+  string cache_key_override = 4;
+}
+
+message TokenUsage {
+  int32 prompt_tokens = 1;
+  int32 completion_tokens = 2;
+  int32 total_tokens = 3;
+  int32 cached_tokens = 4;
+}
+
+message CompletionMetadata {
+  google.protobuf.Timestamp created_at = 1;
+  double processing_time_ms = 2;
+  bool from_cache = 3;
+  string cache_key = 4;
+  int32 retry_count = 5;
+  repeated string warnings = 6;
+}
+
+message EmbeddingResult {
+  string text = 1;
+  repeated float embedding = 2;
+  int32 token_count = 3;
+  double cost_usd = 4;
+}
+
+message ModelInfo {
+  string id = 1;
+  string name = 2;
+  string provider = 3;
+  ModelTier tier = 4;
+  string description = 5;
+  int32 context_length = 6;
+  string version = 7;
+  bool deprecated = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message ModelCapabilities {
+  bool supports_tools = 1;
+  bool supports_vision = 2;
+  bool supports_streaming = 3;
+  repeated string supported_formats = 4;
+  repeated string supported_languages = 5;
+  int32 max_output_tokens = 6;
+}
+
+message ModelPricing {
+  double prompt_cost_per_token = 1;
+  double completion_cost_per_token = 2;
+  string currency = 3;
+  google.protobuf.Timestamp effective_date = 4;
+}
+
+message ModelLimits {
+  int32 requests_per_minute = 1;
+  int32 tokens_per_minute = 2;
+  int32 requests_per_day = 3;
+  int32 max_batch_size = 4;
+}
+
+message UsagePeriod {
+  google.protobuf.Timestamp start_time = 1;
+  google.protobuf.Timestamp end_time = 2;
+  int32 total_requests = 3;
+  int32 total_tokens = 4;
+  double total_cost_usd = 5;
+  repeated ModelUsage model_usage = 6;
+}
+
+message UsageSummary {
+  int32 total_requests = 1;
+  int32 total_tokens = 2;
+  double total_cost_usd = 3;
+  double average_cost_per_request = 4;
+  double average_tokens_per_request = 5;
+}
+
+message ProviderUsage {
+  string provider = 1;
+  int32 requests = 2;
+  int32 tokens = 3;
+  double cost_usd = 4;
+  double percentage = 5;
+}
+
+message ModelUsage {
+  string model_id = 1;
+  string provider = 2;
+  int32 requests = 3;
+  int32 tokens = 4;
+  double cost_usd = 5;
+}
+
+message BudgetLimits {
+  double daily_limit_usd = 1;
+  double monthly_limit_usd = 2;
+  double current_daily_spend = 3;
+  double current_monthly_spend = 4;
+  bool enforce_limits = 5;
+}
+
+message RecommendedStrategy {
+  string strategy_name = 1;
+  string description = 2;
+  repeated string required_models = 3;
+  int32 estimated_agents = 4;
+  double confidence = 5;
+}
+
+message ModelHealthStatus {
+  string model_id = 1;
+  string provider = 2;
+  HealthStatus status = 3;
+  double response_time_ms = 4;
+  double success_rate = 5;
+  string message = 6;
+}
+
+message ToolHealthStatus {
+  string tool_name = 1;
+  HealthStatus status = 2;
+  double response_time_ms = 3;
+  double success_rate = 4;
+  string message = 5;
+}
+
+message SystemMetrics {
+  double cpu_usage_percent = 1;
+  double memory_usage_percent = 2;
+  int32 active_requests = 3;
+  int32 queue_length = 4;
+  double average_response_time_ms = 5;
+}
+
+// Enums
+enum ModelTier {
+  MODEL_TIER_UNKNOWN = 0;
+  MODEL_TIER_SMALL = 1;
+  MODEL_TIER_MEDIUM = 2;
+  MODEL_TIER_LARGE = 3;
+  MODEL_TIER_PREMIUM = 4;
+}
+
+enum FinishReason {
+  FINISH_REASON_UNKNOWN = 0;
+  FINISH_REASON_STOP = 1;
+  FINISH_REASON_LENGTH = 2;
+  FINISH_REASON_TOOL_CALLS = 3;
+  FINISH_REASON_CONTENT_FILTER = 4;
+  FINISH_REASON_ERROR = 5;
+}
+
+enum ExecutionStatus {
+  EXECUTION_STATUS_UNKNOWN = 0;
+  EXECUTION_STATUS_PENDING = 1;
+  EXECUTION_STATUS_RUNNING = 2;
+  EXECUTION_STATUS_COMPLETED = 3;
+  EXECUTION_STATUS_FAILED = 4;
+  EXECUTION_STATUS_TIMEOUT = 5;
+}
+
+enum ComplexityLevel {
+  COMPLEXITY_LEVEL_UNKNOWN = 0;
+  COMPLEXITY_LEVEL_SIMPLE = 1;
+  COMPLEXITY_LEVEL_MODERATE = 2;
+  COMPLEXITY_LEVEL_COMPLEX = 3;
+  COMPLEXITY_LEVEL_EXPERT = 4;
+}
+
+enum ToolSafety {
+  TOOL_SAFETY_UNKNOWN = 0;
+  TOOL_SAFETY_SAFE = 1;
+  TOOL_SAFETY_CAUTION = 2;
+  TOOL_SAFETY_DANGEROUS = 3;
+  TOOL_SAFETY_RESTRICTED = 4;
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNKNOWN = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}
