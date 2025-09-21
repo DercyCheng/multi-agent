@@ -20,6 +20,10 @@ import {
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     BellOutlined,
+    FlagOutlined,
+    ControlOutlined,
+    ScheduleOutlined,
+    CloudServerOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -45,6 +49,26 @@ const MainLayout: React.FC = () => {
             key: '/workflows',
             icon: <ApartmentOutlined />,
             label: '工作流',
+        },
+        {
+            key: '/feature-flags',
+            icon: <FlagOutlined />,
+            label: '特性开关',
+        },
+        {
+            key: '/configuration',
+            icon: <ControlOutlined />,
+            label: '配置中心',
+        },
+        {
+            key: '/cronjobs',
+            icon: <ScheduleOutlined />,
+            label: '定时任务',
+        },
+        {
+            key: '/service-discovery',
+            icon: <CloudServerOutlined />,
+            label: '服务发现',
         },
         {
             key: '/settings',

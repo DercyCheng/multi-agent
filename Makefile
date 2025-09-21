@@ -65,8 +65,14 @@ clean:
 
 # Docker operations
 docker-build:
-	@echo "Building Docker images..."
-	docker-compose build
+	@echo "Building Docker images with optimization..."
+	@chmod +x scripts/build.sh
+	@./scripts/build.sh build
+
+docker-build-all:
+	@echo "Building all Docker images with security scan..."
+	@chmod +x scripts/build.sh
+	@./scripts/build.sh all
 
 docker-up:
 	@echo "Starting services with Docker Compose..."
@@ -79,6 +85,25 @@ docker-down:
 docker-logs:
 	@echo "Showing service logs..."
 	docker-compose logs -f
+
+docker-test:
+	@echo "Running comprehensive test suite..."
+	@chmod +x scripts/test.sh
+	@./scripts/test.sh all
+
+docker-test-unit:
+	@echo "Running unit tests..."
+	@chmod +x scripts/test.sh
+	@./scripts/test.sh unit
+
+docker-test-integration:
+	@echo "Running integration tests..."
+	@chmod +x scripts/test.sh
+	@./scripts/test.sh integration
+
+docker-clean:
+	@echo "Cleaning Docker system..."
+	@./scripts/build.sh clean
 
 # Compilation check for all services
 compile-check:

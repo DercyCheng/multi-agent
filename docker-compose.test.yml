@@ -1,0 +1,138 @@
+# Docker Compose for build and testing
+version: '3.8'
+
+services:
+  # Build all services for testing
+  frontend-build:
+    build:
+      context: .
+      dockerfile: docker/frontend.dockerfile
+      cache_from:
+        - node:18-alpine
+        - nginx:alpine
+    image: multiagent/frontend:test
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  orchestrator-build:
+    build:
+      context: .
+      dockerfile: docker/go-service.dockerfile
+      args:
+        SERVICE_PATH: go/orchestrator
+      cache_from:
+        - golang:1.21-alpine
+        - alpine:latest
+    image: multiagent/orchestrator:test
+    ports:
+      - "50052:50052"
+      - "8081:8081"
+    environment:
+      - POSTGRES_HOST=postgres-test
+      - REDIS_HOST=redis-test
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+
+  api-gateway-build:
+    build:
+      context: .
+      dockerfile: docker/go-service.dockerfile
+      args:
+        SERVICE_PATH: go/api-gateway
+      cache_from:
+        - golang:1.21-alpine
+        - alpine:latest
+    image: multiagent/api-gateway:test
+    ports:
+      - "8080:8080"
+    depends_on:
+      - orchestrator-build
+
+  agent-core-build:
+    build:
+      context: .
+      dockerfile: docker/rust.dockerfile
+      cache_from:
+        - rust:1.75-slim
+        - debian:bookworm-slim
+    image: multiagent/agent-core:test
+    ports:
+      - "50051:50051"
+      - "2113:2113"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2113/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  llm-service-build:
+    build:
+      context: .
+      dockerfile: docker/python.dockerfile
+      cache_from:
+        - python:3.11-slim
+    image: multiagent/llm-service:test
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-test-key}
+      - OLLAMA_ENABLED=true
+      - OLLAMA_BASE_URL=http://ollama-test:11434
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Test infrastructure services
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: multiagent_test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    volumes:
+      - ./migrations/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-test:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama-test:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  ollama_data:
+
+networks:
+  default:
+    driver: bridge

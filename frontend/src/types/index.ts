@@ -16,6 +16,101 @@ export interface Agent {
     updatedAt: string;
 }
 
+// 特性开关相关类型
+export interface FeatureFlag {
+    id: string;
+    name: string;
+    description: string;
+    enabled: boolean;
+    rules: FeatureFlagRule[];
+    rollout_percentage: number;
+    environments: string[];
+    tenant_id: string;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface FeatureFlagRule {
+    id: string;
+    conditions: FeatureFlagCondition[];
+    enabled: boolean;
+    rollout_percentage: number;
+}
+
+export interface FeatureFlagCondition {
+    property: string;
+    operator: 'equals' | 'not_equals' | 'contains' | 'in' | 'not_in' | 'greater_than' | 'less_than';
+    value: any;
+}
+
+// 配置中心相关类型
+export interface Configuration {
+    id: string;
+    key: string;
+    value: string;
+    type: 'string' | 'number' | 'boolean' | 'json';
+    environment: string;
+    description: string;
+    tenant_id: string;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+    version?: string;
+}
+
+// 定时任务相关类型
+export interface CronJob {
+    id: string;
+    name: string;
+    description: string;
+    schedule: string;
+    command: string;
+    enabled: boolean;
+    timeout: number;
+    retries: number;
+    tenant_id: string;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+    last_run?: string;
+    next_run?: string;
+    success_rate?: number;
+    total_runs?: number;
+}
+
+export interface CronJobExecution {
+    id: string;
+    job_id: string;
+    status: 'scheduled' | 'running' | 'completed' | 'failed' | 'timeout';
+    started_at: string;
+    finished_at?: string;
+    duration: number;
+    exit_code?: number;
+    output: string;
+    error?: string;
+    attempt: number;
+    trigger_type: 'scheduled' | 'manual';
+}
+
+// 服务发现相关类型
+export interface Service {
+    id: string;
+    name: string;
+    version: string;
+    address: string;
+    port: number;
+    health_check_url: string;
+    status: 'healthy' | 'unhealthy' | 'unknown';
+    last_seen: string;
+    registered_at: string;
+    metadata: Record<string, any>;
+    tags: string[];
+    health_check_interval: number;
+    health_check_timeout: number;
+    environment: string;
+}
+
 // 工作流相关类型
 export interface Workflow {
     id: string;

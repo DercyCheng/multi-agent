@@ -9,6 +9,10 @@ import AgentList from './pages/Agents/AgentList';
 import AgentDetail from './pages/Agents/AgentDetail';
 import WorkflowList from './pages/Workflows/WorkflowList';
 import WorkflowDetail from './pages/Workflows/WorkflowDetail';
+import FeatureFlagsManagement from './pages/FeatureFlags/FeatureFlagsManagement';
+import ConfigurationCenter from './pages/Configuration/ConfigurationCenter';
+import CronJobsManagement from './pages/CronJobs/CronJobsManagement';
+import ServiceDiscovery from './pages/ServiceDiscovery/ServiceDiscovery';
 import Login from './pages/Auth/Login';
 import './App.css';
 
@@ -42,6 +46,10 @@ function App() {
                 <Route path="agents/:id" element={<AgentDetail />} />
                 <Route path="workflows" element={<WorkflowList />} />
                 <Route path="workflows/:id" element={<WorkflowDetail />} />
+                <Route path="feature-flags" element={<FeatureFlagsManagement />} />
+                <Route path="configuration" element={<ConfigurationCenter />} />
+                <Route path="cronjobs" element={<CronJobsManagement />} />
+                <Route path="service-discovery" element={<ServiceDiscovery />} />
               </Route>
             </Routes>
           </Router>
