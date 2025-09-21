@@ -11,7 +11,7 @@ import {
     Statistic,
     Typography,
     Tabs,
-    Table,
+    // Table,
     Progress,
     Alert,
     List,

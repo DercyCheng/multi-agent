@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { AgentService } from '../../services/agent';
 import type { Agent, PaginatedResponse } from '../../types';
 

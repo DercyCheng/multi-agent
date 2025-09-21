@@ -155,7 +155,7 @@ const SystemIntegration: React.FC = () => {
                         <div>
                             <p>以下项目存在冲突:</p>
                             <ul>
-                                {response.data.conflicts.map((conflict, index) => (
+                                {(response.data.conflicts || []).map((conflict: any, index: number) => (
                                     <li key={index}>
                                         {conflict.type}: {conflict.key} - {conflict.reason}
                                     </li>

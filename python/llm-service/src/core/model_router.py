@@ -12,11 +12,10 @@ from enum import Enum
 import json
 
 from src.config import ModelsConfig, ModelProviderConfig
-from src.providers.openai_provider import OpenAIProvider
-from src.providers.anthropic_provider import AnthropicProvider
-from src.providers.cohere_provider import CohereProvider
-from src.providers.google_provider import GoogleProvider
-from src.providers.ollama_provider import OllamaProvider
+# Provider imports are intentionally lazy to avoid importing heavy SDKs
+# at module import time (which breaks unit tests that don't exercise
+# actual provider functionality). Providers will be imported inside
+# `_create_provider` when needed.
 from src.core.models import CompletionRequest, CompletionResponse, ModelInfo
 
 logger = logging.getLogger(__name__)
@@ -115,15 +114,37 @@ class ModelRouter:
     
     async def _create_provider(self, name: str, config: ModelProviderConfig):
         """Create provider instance"""
+        # Import the provider implementation on demand to avoid import-time
+        # dependency requirements for unit tests that don't use them.
         if name == "openai":
+            try:
+                from src.providers.openai_provider import OpenAIProvider
+            except Exception as e:
+                raise ImportError(f"OpenAI provider not available: {e}")
             return OpenAIProvider(config)
         elif name == "anthropic":
+            try:
+                from src.providers.anthropic_provider import AnthropicProvider
+            except Exception as e:
+                raise ImportError(f"Anthropic provider not available: {e}")
             return AnthropicProvider(config)
         elif name == "cohere":
+            try:
+                from src.providers.cohere_provider import CohereProvider
+            except Exception as e:
+                raise ImportError(f"Cohere provider not available: {e}")
             return CohereProvider(config)
         elif name == "google":
+            try:
+                from src.providers.google_provider import GoogleProvider
+            except Exception as e:
+                raise ImportError(f"Google provider not available: {e}")
             return GoogleProvider(config)
         elif name == "ollama":
+            try:
+                from src.providers.ollama_provider import OllamaProvider
+            except Exception as e:
+                raise ImportError(f"Ollama provider not available: {e}")
             return OllamaProvider(config)
         else:
             raise ValueError(f"Unknown provider: {name}")

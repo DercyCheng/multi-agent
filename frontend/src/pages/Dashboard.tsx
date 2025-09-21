@@ -72,7 +72,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
 
 const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
-    const [systemHealth, setSystemHealth] = useState('healthy');
+    const [systemHealth, _setSystemHealth] = useState('healthy');
 
     useEffect(() => {
         // 模拟数据加载

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, Tag, Space, Tabs, message, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 
-const { TabPane } = Tabs;
+// ...existing code...
 const { TextArea } = Input;
 const { Option } = Select;
 
@@ -241,8 +241,8 @@ const ConfigurationCenter: React.FC = () => {
                         }}>
                             {displayValue}
                         </div>
-                        <Tag size="small" style={{ marginTop: 4 }}>
-                            {record.metadata.type}
+                        <Tag style={{ marginTop: 4, fontSize: 12 }}>
+                            {record.metadata?.type}
                         </Tag>
                     </div>
                 );

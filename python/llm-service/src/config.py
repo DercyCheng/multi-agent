@@ -3,11 +3,11 @@ Configuration management for Multi-Agent LLM Service
 """
 
 from typing import Dict, List, Optional, Any
-from pydantic import BaseSettings, Field, validator
+from pydantic import Field, validator
 from pydantic_settings import BaseSettings as PydanticBaseSettings
 import os
 
-class ServerConfig(BaseSettings):
+class ServerConfig(PydanticBaseSettings):
     """Server configuration"""
     host: str = Field(default="0.0.0.0", env="HOST")
     port: int = Field(default=8000, env="PORT")
@@ -16,7 +16,7 @@ class ServerConfig(BaseSettings):
     max_connections: int = Field(default=1000, env="MAX_CONNECTIONS")
     keepalive_timeout: int = Field(default=5, env="KEEPALIVE_TIMEOUT")
 
-class DatabaseConfig(BaseSettings):
+class DatabaseConfig(PydanticBaseSettings):
     """Database configuration"""
     postgres_url: str = Field(env="POSTGRES_URL")
     redis_url: str = Field(env="REDIS_URL")
@@ -24,7 +24,7 @@ class DatabaseConfig(BaseSettings):
     pool_size: int = Field(default=10, env="DB_POOL_SIZE")
     max_overflow: int = Field(default=20, env="DB_MAX_OVERFLOW")
 
-class ModelProviderConfig(BaseSettings):
+class ModelProviderConfig(PydanticBaseSettings):
     """Model provider configuration"""
     name: str
     api_key: str
@@ -35,7 +35,7 @@ class ModelProviderConfig(BaseSettings):
     max_retries: int = 3
     enabled: bool = True
 
-class ModelsConfig(BaseSettings):
+class ModelsConfig(PydanticBaseSettings):
     """Models configuration"""
     default_provider: str = Field(default="openai", env="DEFAULT_PROVIDER")
     default_model: str = Field(default="gpt-3.5-turbo", env="DEFAULT_MODEL")
@@ -75,7 +75,7 @@ class ModelsConfig(BaseSettings):
         enabled=bool(os.getenv("OLLAMA_ENABLED", "false").lower() in ["1", "true", "yes"])  # default disabled
     )
 
-class ContextConfig(BaseSettings):
+class ContextConfig(PydanticBaseSettings):
     """Context engineering configuration"""
     max_context_length: int = Field(default=32000, env="MAX_CONTEXT_LENGTH")
     compression_threshold: float = Field(default=0.8, env="COMPRESSION_THRESHOLD")
@@ -83,7 +83,7 @@ class ContextConfig(BaseSettings):
     memory_retrieval_enabled: bool = Field(default=True, env="MEMORY_RETRIEVAL_ENABLED")
     template_cache_size: int = Field(default=1000, env="TEMPLATE_CACHE_SIZE")
 
-class TokenConfig(BaseSettings):
+class TokenConfig(PydanticBaseSettings):
     """Token management configuration"""
     cost_tracking_enabled: bool = Field(default=True, env="COST_TRACKING_ENABLED")
     budget_enforcement_enabled: bool = Field(default=True, env="BUDGET_ENFORCEMENT_ENABLED")
@@ -95,7 +95,7 @@ class TokenConfig(BaseSettings):
         "claude-3-opus": 0.015,
     }
 
-class MCPConfig(BaseSettings):
+class MCPConfig(PydanticBaseSettings):
     """MCP (Model Context Protocol) configuration"""
     enabled: bool = Field(default=True, env="MCP_ENABLED")
     server_host: str = Field(default="localhost", env="MCP_SERVER_HOST")
@@ -104,7 +104,7 @@ class MCPConfig(BaseSettings):
     timeout: int = Field(default=30, env="MCP_TIMEOUT")
     tools_registry_url: str = Field(default="", env="MCP_TOOLS_REGISTRY_URL")
 
-class SecurityConfig(BaseSettings):
+class SecurityConfig(PydanticBaseSettings):
     """Security configuration"""
     jwt_secret: str = Field(env="JWT_SECRET")
     jwt_algorithm: str = Field(default="HS256", env="JWT_ALGORITHM")
@@ -113,14 +113,14 @@ class SecurityConfig(BaseSettings):
     rate_limit_per_minute: int = Field(default=100, env="RATE_LIMIT_PER_MINUTE")
     max_request_size: int = Field(default=10485760, env="MAX_REQUEST_SIZE")  # 10MB
 
-class LoggingConfig(BaseSettings):
+class LoggingConfig(PydanticBaseSettings):
     """Logging configuration"""
     level: str = Field(default="INFO", env="LOG_LEVEL")
     format: str = Field(default="json", env="LOG_FORMAT")
     access_log: bool = Field(default=True, env="ACCESS_LOG")
     log_file: Optional[str] = Field(default=None, env="LOG_FILE")
 
-class TracingConfig(BaseSettings):
+class TracingConfig(PydanticBaseSettings):
     """Distributed tracing configuration"""
     enabled: bool = Field(default=True, env="TRACING_ENABLED")
     service_name: str = Field(default="llm-service", env="TRACING_SERVICE_NAME")
@@ -128,7 +128,7 @@ class TracingConfig(BaseSettings):
     jaeger_port: int = Field(default=14268, env="JAEGER_PORT")
     sample_rate: float = Field(default=0.1, env="TRACING_SAMPLE_RATE")
 
-class MetricsConfig(BaseSettings):
+class MetricsConfig(PydanticBaseSettings):
     """Metrics configuration"""
     enabled: bool = Field(default=True, env="METRICS_ENABLED")
     port: int = Field(default=8001, env="METRICS_PORT")
@@ -143,16 +143,16 @@ class Settings(PydanticBaseSettings):
     debug: bool = Field(default=False, env="DEBUG")
     
     # Component configurations
-    server: ServerConfig = ServerConfig()
-    database: DatabaseConfig = DatabaseConfig()
-    models: ModelsConfig = ModelsConfig()
-    context: ContextConfig = ContextConfig()
-    tokens: TokenConfig = TokenConfig()
-    mcp: MCPConfig = MCPConfig()
-    security: SecurityConfig = SecurityConfig()
-    logging: LoggingConfig = LoggingConfig()
-    tracing: TracingConfig = TracingConfig()
-    metrics: MetricsConfig = MetricsConfig()
+    server: ServerConfig = Field(default_factory=ServerConfig)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    models: ModelsConfig = Field(default_factory=ModelsConfig)
+    context: ContextConfig = Field(default_factory=ContextConfig)
+    tokens: TokenConfig = Field(default_factory=TokenConfig)
+    mcp: MCPConfig = Field(default_factory=MCPConfig)
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    tracing: TracingConfig = Field(default_factory=TracingConfig)
+    metrics: MetricsConfig = Field(default_factory=MetricsConfig)
     
     class Config:
         env_file = ".env"

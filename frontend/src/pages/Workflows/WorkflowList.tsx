@@ -32,7 +32,7 @@ import type { Workflow } from '../../types';
 
 const { Title } = Typography;
 const { Option } = Select;
-const { TextArea } = Input;
+// const { TextArea } = Input;
 
 const WorkflowList: React.FC = () => {
     const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -40,8 +40,8 @@ const WorkflowList: React.FC = () => {
     const [searchText, setSearchText] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isModalVisible, setIsModalVisible] = useState(false);
-    const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
-    const [form] = Form.useForm();
+    const [_editingWorkflow, _setEditingWorkflow] = useState<Workflow | null>(null);
+    const [_form] = Form.useForm();
 
     // 模拟数据
     const mockWorkflows: Workflow[] = [
@@ -275,7 +275,7 @@ const WorkflowList: React.FC = () => {
         {
             title: '执行统计',
             key: 'metrics',
-            render: (_, workflow: Workflow) => {
+            render: (_: any, workflow: Workflow) => {
                 const successRate = workflow.metrics.totalRuns > 0
                     ? (workflow.metrics.successfulRuns / workflow.metrics.totalRuns * 100).toFixed(1)
                     : 0;

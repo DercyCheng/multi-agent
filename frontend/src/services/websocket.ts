@@ -31,7 +31,7 @@ class WebSocketService {
             this.socket.disconnect();
             this.socket = null;
         }
-        store.dispatch(setConnectionStatus(false));
+        (store.dispatch as any)({ type: 'system/setConnectionStatus', payload: false });
     }
 
     private setupEventListeners() {
@@ -40,24 +40,24 @@ class WebSocketService {
         this.socket.on('connect', () => {
             console.log('WebSocket connected');
             this.reconnectAttempts = 0;
-            store.dispatch(setConnectionStatus(true));
+            (store.dispatch as any)({ type: 'system/setConnectionStatus', payload: true });
         });
 
         this.socket.on('disconnect', () => {
             console.log('WebSocket disconnected');
-            store.dispatch(setConnectionStatus(false));
+            (store.dispatch as any)({ type: 'system/setConnectionStatus', payload: false });
             this.handleReconnect();
         });
 
         this.socket.on('connect_error', (error) => {
             console.error('WebSocket connection error:', error);
-            store.dispatch(setConnectionStatus(false));
+            (store.dispatch as any)({ type: 'system/setConnectionStatus', payload: false });
             this.handleReconnect();
         });
 
         // 系统指标更新
         this.socket.on('system_metrics', (metrics: SystemMetrics) => {
-            store.dispatch(setMetrics(metrics));
+            (store.dispatch as any)({ type: 'system/setMetrics', payload: metrics });
         });
 
         // Agent状态更新

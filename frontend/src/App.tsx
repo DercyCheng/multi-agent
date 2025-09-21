@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not required with the new JSX transform
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ConfigProvider, App as AntdApp } from 'antd';

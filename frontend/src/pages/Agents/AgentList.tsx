@@ -267,11 +267,11 @@ const AgentList: React.FC = () => {
             render: (capabilities: string[]) => (
                 <div>
                     {capabilities.slice(0, 2).map(cap => (
-                        <Tag key={cap} size="small">{cap}</Tag>
+                        <Tag key={cap}>{cap}</Tag>
                     ))}
                     {capabilities.length > 2 && (
                         <Tooltip title={capabilities.slice(2).join(', ')}>
-                            <Tag size="small">+{capabilities.length - 2}</Tag>
+                            <Tag>+{capabilities.length - 2}</Tag>
                         </Tooltip>
                     )}
                 </div>
@@ -292,10 +292,10 @@ const AgentList: React.FC = () => {
         {
             title: '操作',
             key: 'actions',
-            render: (_, agent: Agent) => (
-                <Space size="small">
+            render: (_: any, agent: Agent) => (
+                <Space size={8}>
                     <Tooltip title="查看详情">
-                        <Button type="text" icon={<EyeOutlined />} size="small" />
+                        <Button type="text" icon={<EyeOutlined />} />
                     </Tooltip>
                     <Tooltip title="配置">
                         <Button

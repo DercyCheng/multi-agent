@@ -20,10 +20,10 @@ export const systemSlice = createSlice({
     initialState,
     reducers: {
         setMetrics: (state: any, action: any) => {
-            state.metrics = action.payload;
+            state.metrics = action.payload as any;
         },
         setConnectionStatus: (state: any, action: any) => {
-            state.isConnected = action.payload;
+            state.isConnected = action.payload as any;
         },
         setLoading: (state: any, action: any) => {
             state.loading = action.payload;

@@ -183,7 +183,7 @@ const WorkflowDetail: React.FC = () => {
         return <Tag color={config.color}>{config.text}</Tag>;
     };
 
-    const getStepStatus = (status: string) => {
+    const _getStepStatus = (status: string) => {
         const statusMap = {
             pending: 'wait',
             running: 'process',
@@ -241,10 +241,10 @@ const WorkflowDetail: React.FC = () => {
             title: '操作',
             key: 'actions',
             render: (_: any, execution: WorkflowExecution) => (
-                <Space size="small">
-                    <Button type="text" size="small">查看详情</Button>
+                <Space size={8}>
+                    <Button type="text">查看详情</Button>
                     {execution.status === 'running' && (
-                        <Button type="text" size="small" danger>取消</Button>
+                        <Button type="text" danger>取消</Button>
                     )}
                 </Space>
             ),
@@ -368,7 +368,7 @@ const WorkflowDetail: React.FC = () => {
                         <Tabs defaultActiveKey="steps">
                             <TabPane tab="工作流步骤" key="steps">
                                 <Steps direction="vertical" current={-1}>
-                                    {workflow.steps.map((step, index) => (
+                                    {workflow.steps.map((step, _index) => (
                                         <Step
                                             key={step.id}
                                             title={step.name}
@@ -378,7 +378,7 @@ const WorkflowDetail: React.FC = () => {
                                                     <div>超时: {step.timeout}ms</div>
                                                     <div>重试策略: {step.retryPolicy.maxRetries}次 ({step.retryPolicy.backoffStrategy})</div>
                                                     <div style={{ marginTop: 8 }}>
-                                                        <Tag size="small">Agent ID: {step.agentId}</Tag>
+                                                        <Tag>Agent ID: {step.agentId}</Tag>
                                                     </div>
                                                 </div>
                                             }
