@@ -160,12 +160,15 @@ export const getAgentStatusColor = (status: Agent['status']): string => {
 
 // 获取工作流状态颜色
 export const getWorkflowStatusColor = (status: Workflow['status']): string => {
-    const colorMap = {
+    const colorMap: Record<string, string> = {
         draft: '#999',
         active: '#52c41a',
         paused: '#faad14',
         completed: '#1890ff',
         failed: '#ff4d4f',
+        running: '#52c41a',
+        stopped: '#999',
+        error: '#ff4d4f',
     };
     return colorMap[status] || '#999';
 };

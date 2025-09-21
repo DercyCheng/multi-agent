@@ -1,69 +1,112 @@
-import { apiClient } from './api';
 import type { Workflow, WorkflowExecution, ApiResponse, PaginatedResponse } from '../types';
 
 export class WorkflowService {
-    static async getWorkflows(params?: {
-        page?: number;
-        pageSize?: number;
-        status?: string;
-    }): Promise<PaginatedResponse<Workflow>> {
-        const response = await apiClient.get<PaginatedResponse<Workflow>['data']>('/workflows', {
-            params,
-        });
-        return {
-            success: true,
-            data: response.data,
-            message: response.message,
-        };
-    }
+  static async getWorkflows(params?: { 
+    page?: number; 
+    pageSize?: number; 
+    status?: string; 
+  }): Promise<PaginatedResponse<Workflow>> {
+    // Mock implementation
+    return {
+      data: {
+        items: [],
+        total: 0,
+        page: params?.page || 1,
+        pageSize: params?.pageSize || 10,
+        totalPages: 0,
+      },
+    };
+  }
 
-    static async getWorkflow(id: string): Promise<ApiResponse<Workflow>> {
-        return apiClient.get<Workflow>(`/workflows/${id}`);
-    }
+  static async getWorkflow(id: string): Promise<ApiResponse<Workflow>> {
+    // Mock implementation
+    return {
+      data: {
+        id,
+        name: 'Mock Workflow',
+        description: 'Mock workflow description',
+        status: 'stopped',
+        agents: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      success: true,
+    };
+  }
 
-    static async createWorkflow(workflow: Partial<Workflow>): Promise<ApiResponse<Workflow>> {
-        return apiClient.post<Workflow>('/workflows', workflow);
-    }
+  static async getWorkflowExecutions(workflowId: string, params?: { 
+    page?: number; 
+    pageSize?: number; 
+  }): Promise<PaginatedResponse<WorkflowExecution>> {
+    // Mock implementation
+    return {
+      data: {
+        items: [],
+        total: 0,
+        page: params?.page || 1,
+        pageSize: params?.pageSize || 10,
+        totalPages: 0,
+      },
+    };
+  }
 
-    static async updateWorkflow(id: string, workflow: Partial<Workflow>): Promise<ApiResponse<Workflow>> {
-        return apiClient.put<Workflow>(`/workflows/${id}`, workflow);
-    }
+  static async createWorkflow(workflow: Partial<Workflow>): Promise<ApiResponse<Workflow>> {
+    // Mock implementation
+    return {
+      data: {
+        id: Date.now().toString(),
+        name: workflow.name || 'New Workflow',
+        description: workflow.description || '',
+        status: 'draft',
+        agents: workflow.agents || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      success: true,
+    };
+  }
 
-    static async deleteWorkflow(id: string): Promise<ApiResponse<void>> {
-        return apiClient.delete<void>(`/workflows/${id}`);
-    }
+  static async updateWorkflow(id: string, workflow: Partial<Workflow>): Promise<ApiResponse<Workflow>> {
+    // Mock implementation
+    return {
+      data: {
+        id,
+        name: workflow.name || 'Updated Workflow',
+        description: workflow.description || '',
+        status: workflow.status || 'stopped',
+        agents: workflow.agents || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      success: true,
+    };
+  }
 
-    static async executeWorkflow(id: string, input?: any): Promise<ApiResponse<WorkflowExecution>> {
-        return apiClient.post<WorkflowExecution>(`/workflows/${id}/execute`, { input });
-    }
+  static async deleteWorkflow(id: string): Promise<void> {
+    // Mock implementation
+    return Promise.resolve();
+  }
 
-    static async getWorkflowExecutions(workflowId: string, params?: {
-        page?: number;
-        pageSize?: number;
-        status?: string;
-    }): Promise<PaginatedResponse<WorkflowExecution>> {
-        const response = await apiClient.get<PaginatedResponse<WorkflowExecution>['data']>(
-            `/workflows/${workflowId}/executions`,
-            { params }
-        );
-        return {
-            success: true,
-            data: response.data,
-            message: response.message,
-        };
-    }
+  static async startWorkflow(id: string): Promise<ApiResponse<Workflow>> {
+    // Mock implementation
+    return this.updateWorkflow(id, { status: 'running' });
+  }
 
-    static async getWorkflowExecution(workflowId: string, executionId: string): Promise<ApiResponse<WorkflowExecution>> {
-        return apiClient.get<WorkflowExecution>(`/workflows/${workflowId}/executions/${executionId}`);
-    }
+  static async stopWorkflow(id: string): Promise<ApiResponse<Workflow>> {
+    // Mock implementation
+    return this.updateWorkflow(id, { status: 'stopped' });
+  }
 
-    static async cancelWorkflowExecution(workflowId: string, executionId: string): Promise<ApiResponse<void>> {
-        return apiClient.post<void>(`/workflows/${workflowId}/executions/${executionId}/cancel`);
-    }
-
-    static async getWorkflowMetrics(id: string, timeRange?: string): Promise<ApiResponse<any>> {
-        return apiClient.get<any>(`/workflows/${id}/metrics`, {
-            params: { timeRange },
-        });
-    }
+  static async executeWorkflow(id: string, input?: any): Promise<ApiResponse<any>> {
+    // Mock implementation
+    return {
+      data: { 
+        executionId: `exec_${id}_${Date.now()}`, 
+        status: 'started',
+        input 
+      },
+      success: true,
+      message: 'Workflow execution started'
+    };
+  }
 }
