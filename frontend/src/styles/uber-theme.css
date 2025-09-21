@@ -1,0 +1,101 @@
+/* Uber-style Theme Overrides */
+
+/* Table Styling */
+.uber-table .ant-table-thead>tr>th {
+    background-color: #F6F6F6 !important;
+    border-bottom: 1px solid #E5E5E5 !important;
+    color: #676767 !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    padding: 16px 24px !important;
+}
+
+.uber-table .ant-table-tbody>tr>td {
+    border-bottom: 1px solid #F0F0F0 !important;
+    padding: 20px 24px !important;
+}
+
+.uber-table .ant-table-tbody>tr:hover>td {
+    background-color: #F9F9F9 !important;
+}
+
+/* Menu Styling */
+.uber-menu .ant-menu-item {
+    border-radius: 12px !important;
+    margin: 4px 16px !important;
+    padding-left: 24px !important;
+    height: 48px !important;
+    line-height: 48px !important;
+    font-weight: 500 !important;
+}
+
+.uber-menu .ant-menu-item-selected {
+    background-color: #F6F6F6 !important;
+    color: #000000 !important;
+}
+
+.uber-menu .ant-menu-item:hover {
+    background-color: #F9F9F9 !important;
+    color: #000000 !important;
+}
+
+.uber-menu .ant-menu-item-icon {
+    font-size: 20px !important;
+}
+
+/* Card Styling */
+.uber-card {
+    border-radius: 16px !important;
+    border: 1px solid #E5E5E5 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Button Styling */
+.uber-button-primary {
+    background-color: #000000 !important;
+    border-color: #000000 !important;
+    border-radius: 12px !important;
+    font-weight: 500 !important;
+}
+
+.uber-button-primary:hover {
+    background-color: #333333 !important;
+    border-color: #333333 !important;
+}
+
+/* Typography */
+.uber-title {
+    font-weight: 700 !important;
+    color: #000000 !important;
+    letter-spacing: -1px !important;
+}
+
+.uber-text-secondary {
+    color: #676767 !important;
+}
+
+/* Layout */
+.uber-layout-sider {
+    background: #FFFFFF !important;
+    border-right: 1px solid #E5E5E5 !important;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+.uber-layout-header {
+    background: #FFFFFF !important;
+    border-bottom: 1px solid #E5E5E5 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Progress Circle */
+.uber-progress-circle .ant-progress-text {
+    font-weight: 600 !important;
+}
+
+/* Tags */
+.uber-tag {
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 4px 12px !important;
+    font-weight: 500 !important;
+}

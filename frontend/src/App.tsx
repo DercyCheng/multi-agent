@@ -15,18 +15,46 @@ import CronJobsManagement from './pages/CronJobs/CronJobsManagement';
 import ServiceDiscovery from './pages/ServiceDiscovery/ServiceDiscovery';
 import Login from './pages/Auth/Login';
 import './App.css';
+import './styles/uber-theme.css';
 
-// Ant Design 主题配置
+// Uber-style 主题配置
 const theme = {
   token: {
-    colorPrimary: '#1890ff',
-    borderRadius: 6,
+    colorPrimary: '#000000', // Uber's black
+    colorPrimaryHover: '#333333',
+    colorInfo: '#000000',
+    colorSuccess: '#00B341', // Uber green
+    colorWarning: '#F5A623',
+    colorError: '#E53E3E',
+    borderRadius: 8,
     wireframe: false,
+    fontSize: 14,
+    fontFamily: 'UberMove, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+    boxShadowSecondary: '0 4px 12px rgba(0, 0, 0, 0.08)',
   },
   components: {
     Layout: {
-      siderBg: '#001529',
-      triggerBg: '#002140',
+      siderBg: '#FFFFFF',
+      headerBg: '#FFFFFF',
+      bodyBg: '#F6F6F6',
+      triggerBg: '#F6F6F6',
+    },
+    Menu: {
+      itemBg: 'transparent',
+      itemSelectedBg: '#F6F6F6',
+      itemHoverBg: '#F9F9F9',
+      itemSelectedColor: '#000000',
+      itemColor: '#676767',
+      iconSize: 20,
+    },
+    Card: {
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+      borderRadius: 12,
+    },
+    Button: {
+      borderRadius: 8,
+      fontWeight: 500,
     },
   },
 };

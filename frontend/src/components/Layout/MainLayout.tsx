@@ -119,66 +119,118 @@ const MainLayout: React.FC = () => {
                 trigger={null}
                 collapsible
                 collapsed={collapsed}
+                width={280}
                 style={{
-                    background: '#001529',
+                    background: '#FFFFFF',
+                    borderRight: '1px solid #E5E5E5',
+                    boxShadow: '2px 0 8px rgba(0, 0, 0, 0.04)',
                 }}
             >
-                <div
-                    style={{
-                        height: 64,
-                        margin: 16,
-                        background: 'rgba(255, 255, 255, 0.2)',
-                        borderRadius: 6,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: collapsed ? 14 : 16,
-                    }}
-                >
-                    {collapsed ? 'MA' : 'Multi-Agent'}
+                <div style={{
+                    height: '80px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 24px',
+                    borderBottom: '1px solid #F0F0F0'
+                }}>
+                    {!collapsed ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                width: '32px',
+                                height: '32px',
+                                background: 'linear-gradient(135deg, #000000 0%, #333333 100%)',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '14px'
+                            }}>
+                                MA
+                            </div>
+                            <Text style={{
+                                fontSize: '18px',
+                                fontWeight: '600',
+                                color: '#000000',
+                                letterSpacing: '-0.5px'
+                            }}>
+                                Multi-Agent
+                            </Text>
+                        </div>
+                    ) : (
+                        <div style={{
+                            width: '32px',
+                            height: '32px',
+                            background: 'linear-gradient(135deg, #000000 0%, #333333 100%)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '14px',
+                            margin: '0 auto'
+                        }}>
+                            MA
+                        </div>
+                    )}
                 </div>
                 <Menu
-                    theme="dark"
+                    className="uber-menu"
                     mode="inline"
                     selectedKeys={[location.pathname]}
                     items={menuItems}
                     onClick={handleMenuClick}
+                    style={{
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        paddingTop: '16px'
+                    }}
                 />
             </Sider>
             <Layout>
-                <Header
-                    style={{
-                        padding: '0 24px',
-                        background: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderBottom: '1px solid #f0f0f0',
-                    }}
-                >
-                    <Space>
-                        <Button
-                            type="text"
-                            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                            onClick={() => setCollapsed(!collapsed)}
-                            style={{ fontSize: 16, width: 40, height: 40 }}
-                        />
-                        <Text strong style={{ fontSize: 18 }}>
-                            Multi-Agent 管理平台
-                        </Text>
-                    </Space>
-
-                    <Space size="middle">
+                <Header style={{
+                    padding: '0 32px',
+                    background: '#FFFFFF',
+                    borderBottom: '1px solid #E5E5E5',
+                    height: '80px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1000,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+                }}>
+                    <Button
+                        type="text"
+                        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                        onClick={() => setCollapsed(!collapsed)}
+                        style={{
+                            fontSize: '18px',
+                            width: '48px',
+                            height: '48px',
+                            color: '#676767',
+                            border: 'none',
+                            borderRadius: '8px'
+                        }}
+                    />
+                    <Space size="large">
                         <Badge count={3} size="small">
                             <Button
                                 type="text"
                                 icon={<BellOutlined />}
-                                style={{ fontSize: 16, width: 40, height: 40 }}
+                                style={{
+                                    fontSize: '18px',
+                                    width: '48px',
+                                    height: '48px',
+                                    color: '#676767',
+                                    border: 'none',
+                                    borderRadius: '8px'
+                                }}
                             />
                         </Badge>
-
                         <Dropdown
                             menu={{
                                 items: userMenuItems,
@@ -186,23 +238,34 @@ const MainLayout: React.FC = () => {
                             }}
                             placement="bottomRight"
                         >
-                            <Space style={{ cursor: 'pointer' }}>
-                                <Avatar size="small" icon={<UserOutlined />} />
-                                <Text>管理员</Text>
+                            <Space style={{ cursor: 'pointer', padding: '8px 16px', borderRadius: '12px', transition: 'all 0.2s' }}>
+                                <Avatar
+                                    size="large"
+                                    icon={<UserOutlined />}
+                                    style={{
+                                        backgroundColor: '#F6F6F6',
+                                        color: '#676767',
+                                        border: '2px solid #E5E5E5'
+                                    }}
+                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                    <Text style={{ fontSize: '14px', fontWeight: '500', color: '#000000', lineHeight: 1.2 }}>
+                                        管理员
+                                    </Text>
+                                    <Text style={{ fontSize: '12px', color: '#676767', lineHeight: 1.2 }}>
+                                        admin@multiagent.com
+                                    </Text>
+                                </div>
                             </Space>
                         </Dropdown>
                     </Space>
                 </Header>
-
-                <Content
-                    style={{
-                        margin: 24,
-                        padding: 24,
-                        minHeight: 280,
-                        background: '#f5f5f5',
-                        borderRadius: 8,
-                    }}
-                >
+                <Content style={{
+                    margin: '32px',
+                    padding: '0',
+                    backgroundColor: 'transparent',
+                    overflow: 'auto'
+                }}>
                     <Outlet />
                 </Content>
             </Layout>
