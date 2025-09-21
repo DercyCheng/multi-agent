@@ -1,0 +1,92 @@
+{{- if .Values.configMap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "llm-service.fullname" . }}-config
+  labels:
+    {{- include "llm-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  # Application configuration
+  environment: {{ .Values.global.environment | quote }}
+  log-level: {{ .Values.logging.level | quote }}
+  log-format: {{ .Values.logging.format | quote }}
+  
+  # Service configuration
+  service-port: {{ .Values.service.targetPort | quote }}
+  
+  # Load balancer configuration
+  {{- if .Values.loadBalancer.enabled }}
+  load-balancer-enabled: "true"
+  load-balancer-strategy: {{ .Values.loadBalancer.strategy | quote }}
+  health-check-enabled: {{ .Values.loadBalancer.healthCheck.enabled | quote }}
+  health-check-path: {{ .Values.loadBalancer.healthCheck.path | quote }}
+  health-check-interval: {{ .Values.loadBalancer.healthCheck.interval | quote }}
+  health-check-timeout: {{ .Values.loadBalancer.healthCheck.timeout | quote }}
+  health-check-failure-threshold: {{ .Values.loadBalancer.healthCheck.failureThreshold | quote }}
+  {{- end }}
+  
+  # Ollama configuration
+  {{- if .Values.ollama.enabled }}
+  ollama-enabled: "true"
+  ollama-base-url: {{ .Values.ollama.baseUrl | quote }}
+  ollama-models: {{ .Values.ollama.models | join "," | quote }}
+  ollama-health-check-enabled: {{ .Values.ollama.healthCheck.enabled | quote }}
+  ollama-health-check-interval: {{ .Values.ollama.healthCheck.interval | quote }}
+  ollama-health-check-timeout: {{ .Values.ollama.healthCheck.timeout | quote }}
+  ollama-load-balancing-enabled: {{ .Values.ollama.loadBalancing.enabled | quote }}
+  ollama-load-balancing-strategy: {{ .Values.ollama.loadBalancing.strategy | quote }}
+  {{- if .Values.ollama.multiServer.enabled }}
+  ollama-multi-server-enabled: "true"
+  ollama-servers: {{ .Values.ollama.multiServer.servers | toJson | quote }}
+  {{- end }}
+  {{- end }}
+  
+  # Database configuration
+  {{- if .Values.database.enabled }}
+  database-enabled: "true"
+  database-type: {{ .Values.database.type | quote }}
+  database-host: {{ .Values.database.host | quote }}
+  database-port: {{ .Values.database.port | quote }}
+  database-name: {{ .Values.database.database | quote }}
+  database-username: {{ .Values.database.username | quote }}
+  database-ssl: {{ .Values.database.ssl | quote }}
+  database-max-connections: {{ .Values.database.maxConnections | quote }}
+  {{- end }}
+  
+  # Redis configuration
+  {{- if .Values.redis.enabled }}
+  redis-enabled: "true"
+  redis-host: {{ include "llm-service.fullname" . }}-redis-master
+  redis-port: "6379"
+  {{- end }}
+  
+  # Monitoring configuration
+  {{- if .Values.monitoring.enabled }}
+  monitoring-enabled: "true"
+  {{- if .Values.monitoring.prometheus.enabled }}
+  prometheus-enabled: "true"
+  prometheus-port: {{ .Values.monitoring.prometheus.port | quote }}
+  prometheus-path: {{ .Values.monitoring.prometheus.path | quote }}
+  prometheus-interval: {{ .Values.monitoring.prometheus.interval | quote }}
+  {{- end }}
+  {{- if .Values.monitoring.jaeger.enabled }}
+  jaeger-enabled: "true"
+  jaeger-agent-host: {{ .Values.monitoring.jaeger.agent.host | quote }}
+  jaeger-agent-port: {{ .Values.monitoring.jaeger.agent.port | quote }}
+  {{- end }}
+  {{- end }}
+  
+  # Feature flags
+  feature-ollama-enabled: {{ .Values.featureFlags.ollama_enabled | quote }}
+  feature-cron-enabled: {{ .Values.featureFlags.cron_enabled | quote }}
+  feature-redis-enabled: {{ .Values.featureFlags.redis_enabled | quote }}
+  feature-database-enabled: {{ .Values.featureFlags.database_enabled | quote }}
+  feature-monitoring-enabled: {{ .Values.featureFlags.monitoring_enabled | quote }}
+  feature-tracing-enabled: {{ .Values.featureFlags.tracing_enabled | quote }}
+  
+  # Custom configuration data
+  {{- range $key, $value := .Values.configMap.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}

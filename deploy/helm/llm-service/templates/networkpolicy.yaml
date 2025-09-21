@@ -1,0 +1,102 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "llm-service.fullname" . }}
+  labels:
+    {{- include "llm-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: networkpolicy
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "llm-service.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  {{- if .Values.networkPolicy.ingress }}
+  - Ingress
+  {{- end }}
+  {{- if .Values.networkPolicy.egress }}
+  - Egress
+  {{- end }}
+  {{- if .Values.networkPolicy.ingress }}
+  ingress:
+  {{- range .Values.networkPolicy.ingress }}
+    - {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- else }}
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: {{ .Release.Namespace }}
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ include "llm-service.name" . }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.service.targetPort }}
+    {{- if .Values.monitoring.prometheus.enabled }}
+    - protocol: TCP
+      port: {{ .Values.monitoring.prometheus.port }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.networkPolicy.egress }}
+  egress:
+  {{- range .Values.networkPolicy.egress }}
+    - {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- else }}
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow access to Kubernetes API
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow access to database
+  {{- if .Values.database.enabled }}
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ .Values.database.type }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.database.port }}
+  {{- end }}
+  # Allow access to Redis
+  {{- if .Values.redis.enabled }}
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  {{- end }}
+  # Allow access to Ollama
+  {{- if .Values.ollama.enabled }}
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ollama
+    ports:
+    - protocol: TCP
+      port: 11434
+  {{- end }}
+  # Allow access to monitoring services
+  {{- if .Values.monitoring.jaeger.enabled }}
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: jaeger
+    ports:
+    - protocol: UDP
+      port: {{ .Values.monitoring.jaeger.agent.port }}
+  {{- end }}
+  {{- end }}
+{{- end }}

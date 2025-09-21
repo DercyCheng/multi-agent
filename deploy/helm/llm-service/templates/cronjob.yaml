@@ -1,0 +1,36 @@
+{{- if .Values.cron.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "llm-service.fullname" . }}-cron
+  labels:
+    app.kubernetes.io/name: {{ include "llm-service.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  schedule: "{{ .Values.cron.schedule }}"
+  successfulJobsHistoryLimit: {{ .Values.cron.successfulJobsHistoryLimit | default 3 }}
+  failedJobsHistoryLimit: {{ .Values.cron.failedJobsHistoryLimit | default 1 }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: llm-service-cron
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  # Example cron job: call the internal /health endpoint to keep things warm
+                  curl -f http://localhost:8000/health/ || exit 1
+              env:
+                - name: OLLAMA_BASE_URL
+                  value: "{{ .Values.ollama.baseUrl }}"
+                - name: OLLAMA_ENABLED
+                  value: "{{ .Values.ollama.enabled | quote }}"
+                - name: CRON_ENABLED
+                  value: "{{ .Values.featureFlags.cron_enabled | default .Values.cron.enabled | quote }}"
+          # end container spec
+{{- end }}
+*** End Patch

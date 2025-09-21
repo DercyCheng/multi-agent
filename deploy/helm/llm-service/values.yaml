@@ -1,21 +1,304 @@
-replicaCount: 2
+# Global configuration
+global:
+  environment: production
+  storageClass: standard
 
+# Replica configuration with autoscaling
+replicaCount: 3
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Image configuration
 image:
   repository: multi-agent/llm-service
   tag: latest
   pullPolicy: IfNotPresent
+  imagePullSecrets: []
 
+# Service configuration
 service:
   type: ClusterIP
   port: 8000
+  targetPort: 8000
+  annotations: {}
+  labels: {}
 
-resources: {}
+# Service discovery and load balancing
+serviceDiscovery:
+  enabled: true
+  consul:
+    enabled: false
+    address: consul:8500
+  eureka:
+    enabled: false
+    serviceUrl: http://eureka:8761/eureka
 
+# Load balancer configuration
+loadBalancer:
+  enabled: true
+  strategy: round_robin # round_robin, least_connections, ip_hash
+  healthCheck:
+    enabled: true
+    path: /health
+    interval: 30s
+    timeout: 5s
+    failureThreshold: 3
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+# Node selection and affinity
+nodeSelector: {}
+tolerations: []
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - llm-service
+          topologyKey: kubernetes.io/hostname
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # maxUnavailable: 50%
+
+# Security context
+securityContext:
+  fsGroup: 2000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Container security context
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Persistent storage configuration
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  annotations: {}
+
+# Redis configuration for session storage
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: ""
+  cluster:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+  replica:
+    replicaCount: 1
+
+# Database configuration
+database:
+  enabled: true
+  type: postgresql # postgresql, mysql
+  host: postgresql
+  port: 5432
+  database: llm_service
+  username: llm_user
+  password: ""
+  ssl: false
+  maxConnections: 100
+
+# Ollama configuration
 ollama:
-  enabled: false
+  enabled: true
   baseUrl: http://ollama:11434
   models:
     - mistral
+    - codellama
+    - llama2
+    - mixtral
+  healthCheck:
+    enabled: true
+    interval: 60s
+    timeout: 10s
+  loadBalancing:
+    enabled: true
+    strategy: least_connections
+  multiServer:
+    enabled: false
+    servers:
+      - url: http://ollama-1:11434
+        weight: 1
+      - url: http://ollama-2:11434
+        weight: 1
 
+# Cron job configuration
+cron:
+  enabled: true
+  schedule: "*/5 * * * *" # every 5 minutes
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  restartPolicy: OnFailure
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Feature flags
 featureFlags:
-  ollama_enabled: false
+  ollama_enabled: true
+  cron_enabled: true
+  redis_enabled: true
+  database_enabled: true
+  monitoring_enabled: true
+  tracing_enabled: true
+
+# Monitoring and observability
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    path: /metrics
+    port: 9090
+    interval: 30s
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true
+  jaeger:
+    enabled: true
+    agent:
+      host: jaeger-agent
+      port: 6831
+
+# Logging configuration
+logging:
+  level: info
+  format: json
+  enabled: true
+  filebeat:
+    enabled: false
+  fluentd:
+    enabled: false
+
+# Network policies
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations:
+    {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: llm-service.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: llm-service-tls
+  #    hosts:
+  #      - llm-service.local
+
+# ServiceMonitor for Prometheus
+serviceMonitor:
+  enabled: false
+  namespace: ""
+  labels: {}
+  interval: 30s
+  scrapeTimeout: 10s
+
+# ConfigMap for application configuration
+configMap:
+  enabled: true
+  data: {}
+
+# Secret for sensitive configuration
+secret:
+  enabled: true
+  data: {}
+
+# Init containers
+initContainers: []
+
+# Sidecar containers
+sidecarContainers: []
+
+# Environment variables
+env:
+  - name: ENVIRONMENT
+    value: "production"
+  - name: LOG_LEVEL
+    value: "info"
+
+# Extra volumes
+extraVolumes: []
+
+# Extra volume mounts
+extraVolumeMounts: []
+
+# Lifecycle hooks
+lifecycle: {}
+
+# Probes configuration
+probes:
+  liveness:
+    enabled: true
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /ready
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  startup:
+    enabled: true
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30

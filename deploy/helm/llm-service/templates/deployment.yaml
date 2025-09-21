@@ -3,29 +3,290 @@ kind: Deployment
 metadata:
   name: {{ include "llm-service.fullname" . }}
   labels:
-    app.kubernetes.io/name: {{ include "llm-service.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "llm-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: llm-service
+  {{- with .Values.deployment.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "llm-service.name" . }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- include "llm-service.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        prometheus.io/scrape: "{{ .Values.monitoring.prometheus.enabled }}"
+        prometheus.io/path: "{{ .Values.monitoring.prometheus.path }}"
+        prometheus.io/port: "{{ .Values.monitoring.prometheus.port }}"
       labels:
-        app.kubernetes.io/name: {{ include "llm-service.name" . }}
-        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- include "llm-service.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: llm-service
+        version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
     spec:
+      {{- with .Values.image.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "llm-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      {{- if .Values.initContainers }}
+      initContainers:
+        {{- toYaml .Values.initContainers | nindent 8 }}
+      {{- end }}
       containers:
         - name: llm-service
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.service.port }}
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+            {{- if .Values.monitoring.prometheus.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.monitoring.prometheus.port }}
+              protocol: TCP
+            {{- end }}
+          {{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+            {{- toYaml .Values.probes.liveness.httpGet | nindent 12 }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          {{- end }}
+          {{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+            {{- toYaml .Values.probes.readiness.httpGet | nindent 12 }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          {{- end }}
+          {{- if .Values.probes.startup.enabled }}
+          startupProbe:
+            {{- toYaml .Values.probes.startup.httpGet | nindent 12 }}
+            initialDelaySeconds: {{ .Values.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+          {{- end }}
           env:
+            # Basic configuration
+            - name: ENVIRONMENT
+              value: {{ .Values.global.environment | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.logging.level | quote }}
+            - name: LOG_FORMAT
+              value: {{ .Values.logging.format | quote }}
+            
+            # Service configuration
+            - name: SERVICE_PORT
+              value: {{ .Values.service.targetPort | quote }}
+            
+            # Ollama configuration
+            {{- if .Values.ollama.enabled }}
             - name: OLLAMA_BASE_URL
-              value: "{{ .Values.ollama.baseUrl }}"
+              value: {{ .Values.ollama.baseUrl | quote }}
             - name: OLLAMA_ENABLED
-              value: "{{ .Values.ollama.enabled }}"
-          resources: {{ toYaml .Values.resources | indent 12 }}
+              value: "true"
+            - name: OLLAMA_MODELS
+              value: {{ .Values.ollama.models | join "," | quote }}
+            - name: OLLAMA_HEALTH_CHECK_ENABLED
+              value: {{ .Values.ollama.healthCheck.enabled | quote }}
+            - name: OLLAMA_HEALTH_CHECK_INTERVAL
+              value: {{ .Values.ollama.healthCheck.interval | quote }}
+            - name: OLLAMA_LOAD_BALANCING_ENABLED
+              value: {{ .Values.ollama.loadBalancing.enabled | quote }}
+            - name: OLLAMA_LOAD_BALANCING_STRATEGY
+              value: {{ .Values.ollama.loadBalancing.strategy | quote }}
+            {{- if .Values.ollama.multiServer.enabled }}
+            - name: OLLAMA_MULTI_SERVER_ENABLED
+              value: "true"
+            - name: OLLAMA_SERVERS
+              value: {{ .Values.ollama.multiServer.servers | toJson | quote }}
+            {{- end }}
+            {{- end }}
+            
+            # Database configuration
+            {{- if .Values.database.enabled }}
+            - name: DATABASE_ENABLED
+              value: "true"
+            - name: DATABASE_TYPE
+              value: {{ .Values.database.type | quote }}
+            - name: DATABASE_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: DATABASE_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.database.database | quote }}
+            - name: DATABASE_USERNAME
+              value: {{ .Values.database.username | quote }}
+            - name: DATABASE_SSL
+              value: {{ .Values.database.ssl | quote }}
+            - name: DATABASE_MAX_CONNECTIONS
+              value: {{ .Values.database.maxConnections | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "llm-service.fullname" . }}-secret
+                  key: database-password
+            {{- end }}
+            
+            # Redis configuration
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_ENABLED
+              value: "true"
+            - name: REDIS_HOST
+              value: {{ include "llm-service.fullname" . }}-redis-master
+            - name: REDIS_PORT
+              value: "6379"
+            {{- if .Values.redis.auth.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "llm-service.fullname" . }}-redis
+                  key: redis-password
+            {{- end }}
+            {{- end }}
+            
+            # Feature flags
+            - name: FEATURE_OLLAMA_ENABLED
+              value: {{ .Values.featureFlags.ollama_enabled | quote }}
+            - name: FEATURE_CRON_ENABLED
+              value: {{ .Values.featureFlags.cron_enabled | quote }}
+            - name: FEATURE_REDIS_ENABLED
+              value: {{ .Values.featureFlags.redis_enabled | quote }}
+            - name: FEATURE_DATABASE_ENABLED
+              value: {{ .Values.featureFlags.database_enabled | quote }}
+            - name: FEATURE_MONITORING_ENABLED
+              value: {{ .Values.featureFlags.monitoring_enabled | quote }}
+            - name: FEATURE_TRACING_ENABLED
+              value: {{ .Values.featureFlags.tracing_enabled | quote }}
+            
+            # Monitoring configuration
+            {{- if .Values.monitoring.enabled }}
+            - name: MONITORING_ENABLED
+              value: "true"
+            {{- if .Values.monitoring.prometheus.enabled }}
+            - name: PROMETHEUS_ENABLED
+              value: "true"
+            - name: PROMETHEUS_PORT
+              value: {{ .Values.monitoring.prometheus.port | quote }}
+            - name: PROMETHEUS_PATH
+              value: {{ .Values.monitoring.prometheus.path | quote }}
+            {{- end }}
+            {{- if .Values.monitoring.jaeger.enabled }}
+            - name: JAEGER_ENABLED
+              value: "true"
+            - name: JAEGER_AGENT_HOST
+              value: {{ .Values.monitoring.jaeger.agent.host | quote }}
+            - name: JAEGER_AGENT_PORT
+              value: {{ .Values.monitoring.jaeger.agent.port | quote }}
+            {{- end }}
+            {{- end }}
+            
+            # Load balancer configuration
+            {{- if .Values.loadBalancer.enabled }}
+            - name: LOAD_BALANCER_ENABLED
+              value: "true"
+            - name: LOAD_BALANCER_STRATEGY
+              value: {{ .Values.loadBalancer.strategy | quote }}
+            - name: HEALTH_CHECK_ENABLED
+              value: {{ .Values.loadBalancer.healthCheck.enabled | quote }}
+            - name: HEALTH_CHECK_PATH
+              value: {{ .Values.loadBalancer.healthCheck.path | quote }}
+            - name: HEALTH_CHECK_INTERVAL
+              value: {{ .Values.loadBalancer.healthCheck.interval | quote }}
+            {{- end }}
+            
+            # Additional environment variables
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+            
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: /app/data
+            {{- end }}
+            {{- if .Values.containerSecurityContext.readOnlyRootFilesystem }}
+            - name: tmp
+              mountPath: /tmp
+            - name: var-cache
+              mountPath: /var/cache
+            - name: var-run
+              mountPath: /var/run
+            {{- end }}
+            {{- range .Values.extraVolumeMounts }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+              {{- if .subPath }}
+              subPath: {{ .subPath }}
+              {{- end }}
+              {{- if .readOnly }}
+              readOnly: {{ .readOnly }}
+              {{- end }}
+            {{- end }}
+          {{- with .Values.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- if .Values.sidecarContainers }}
+        {{- toYaml .Values.sidecarContainers | nindent 8 }}
+        {{- end }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "llm-service.fullname" . }}-pvc
+        {{- end }}
+        {{- if .Values.containerSecurityContext.readOnlyRootFilesystem }}
+        - name: tmp
+          emptyDir: {}
+        - name: var-cache
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
+        {{- end }}
+        {{- range .Values.extraVolumes }}
+        - name: {{ .name }}
+          {{- if .configMap }}
+          configMap:
+            {{- toYaml .configMap | nindent 12 }}
+          {{- else if .secret }}
+          secret:
+            {{- toYaml .secret | nindent 12 }}
+          {{- else if .emptyDir }}
+          emptyDir:
+            {{- toYaml .emptyDir | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

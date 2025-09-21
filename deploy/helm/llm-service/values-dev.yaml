@@ -1,0 +1,81 @@
+# Development environment configuration
+global:
+  environment: development
+  storageClass: standard
+
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+image:
+  pullPolicy: Always
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+persistence:
+  enabled: false
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: false
+
+database:
+  enabled: true
+  host: postgresql-dev
+  database: llm_service_dev
+
+ollama:
+  enabled: true
+  models:
+    - mistral
+
+cron:
+  enabled: false
+
+featureFlags:
+  ollama_enabled: true
+  cron_enabled: false
+  redis_enabled: true
+  database_enabled: true
+  monitoring_enabled: true
+  tracing_enabled: false
+
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: false
+  jaeger:
+    enabled: false
+
+logging:
+  level: debug
+
+probes:
+  liveness:
+    initialDelaySeconds: 10
+  readiness:
+    initialDelaySeconds: 5
+  startup:
+    initialDelaySeconds: 5
+
+podDisruptionBudget:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+serviceMonitor:
+  enabled: false

@@ -1,0 +1,99 @@
+# Staging environment configuration
+global:
+  environment: staging
+  storageClass: fast-ssd
+
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60
+
+image:
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 750m
+    memory: 1.5Gi
+  requests:
+    cpu: 375m
+    memory: 768Mi
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+redis:
+  enabled: true
+  auth:
+    enabled: true
+  master:
+    persistence:
+      enabled: true
+      size: 4Gi
+
+database:
+  enabled: true
+  host: postgresql-staging
+  database: llm_service_staging
+  ssl: true
+
+ollama:
+  enabled: true
+  models:
+    - mistral
+    - codellama
+  healthCheck:
+    enabled: true
+  loadBalancing:
+    enabled: true
+
+cron:
+  enabled: true
+
+featureFlags:
+  ollama_enabled: true
+  cron_enabled: true
+  redis_enabled: true
+  database_enabled: true
+  monitoring_enabled: true
+  tracing_enabled: true
+
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true
+  jaeger:
+    enabled: true
+
+logging:
+  level: info
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+
+serviceMonitor:
+  enabled: true
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+  hosts:
+    - host: llm-service-staging.example.com
+      paths:
+        - path: /
+          pathType: Prefix
