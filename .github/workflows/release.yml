@@ -1,0 +1,159 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g., v1.0.0)"
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Generate changelog between tags
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push release images
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          # Build all service images with version tags
+          for service in frontend orchestrator api-gateway agent-core llm-service; do
+            if [ "$service" = "agent-core" ]; then
+              dockerfile="docker/rust.dockerfile"
+            elif [ "$service" = "llm-service" ]; then
+              dockerfile="docker/python.dockerfile"
+            elif [ "$service" = "frontend" ]; then
+              dockerfile="docker/frontend.dockerfile"
+            else
+              dockerfile="docker/go-service.dockerfile"
+              build_args="--build-arg SERVICE_PATH=go/$service"
+            fi
+            
+            docker buildx build \
+              --platform linux/amd64,linux/arm64 \
+              --push \
+              -f $dockerfile \
+              $build_args \
+              -t ${{ env.REGISTRY }}/${{ github.repository }}/$service:$VERSION \
+              -t ${{ env.REGISTRY }}/${{ github.repository }}/$service:latest \
+              .
+          done
+
+      - name: Create Helm package
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          # Update Helm chart version
+          sed -i "s/version: .*/version: ${VERSION#v}/" deploy/helm/llm-service/Chart.yaml
+          sed -i "s/appVersion: .*/appVersion: ${VERSION#v}/" deploy/helm/llm-service/Chart.yaml
+
+          # Package Helm chart
+          helm package deploy/helm/llm-service --destination ./
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## Changes
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## Docker Images
+            - `${{ env.REGISTRY }}/${{ github.repository }}/frontend:${{ steps.version.outputs.version }}`
+            - `${{ env.REGISTRY }}/${{ github.repository }}/orchestrator:${{ steps.version.outputs.version }}`
+            - `${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:${{ steps.version.outputs.version }}`
+            - `${{ env.REGISTRY }}/${{ github.repository }}/agent-core:${{ steps.version.outputs.version }}`
+            - `${{ env.REGISTRY }}/${{ github.repository }}/llm-service:${{ steps.version.outputs.version }}`
+
+            ## Helm Chart
+            ```bash
+            helm install multi-agent oci://${{ env.REGISTRY }}/${{ github.repository }}/helm/multi-agent --version ${{ steps.version.outputs.version }}
+            ```
+          files: |
+            *.tgz
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+
+      - name: Publish Helm chart
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          # Push Helm chart to OCI registry
+          helm push multi-agent-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/${{ github.repository }}/helm
+
+      - name: Update deployment manifests
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          # Update deployment manifests with new version
+          find deploy/k8s -name "*.yaml" -exec sed -i "s|image: .*multi-agent.*:.*|image: ${{ env.REGISTRY }}/${{ github.repository }}/SERVICE:$VERSION|g" {} \;
+
+          # Commit updated manifests
+          git add deploy/
+          git commit -m "Update deployment manifests to $VERSION" || true
+          git push origin HEAD:main || true
+
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: "#releases"
+          text: |
+            🚀 New release published: ${{ steps.version.outputs.version }}
+            📦 Docker images and Helm chart are available
+            🔗 https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: always() && secrets.SLACK_WEBHOOK

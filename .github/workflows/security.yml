@@ -1,0 +1,105 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # Daily at 2 AM
+  workflow_dispatch:
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Scan Docker images
+        run: |
+          # Pull and scan latest images
+          docker pull ghcr.io/${{ github.repository }}/frontend:latest || true
+          docker pull ghcr.io/${{ github.repository }}/llm-service:latest || true
+          docker pull ghcr.io/${{ github.repository }}/agent-core:latest || true
+
+          # Scan with Trivy
+          trivy image --format sarif --output image-scan-results.sarif ghcr.io/${{ github.repository }}/frontend:latest || true
+          trivy image --format sarif --output image-scan-results.sarif ghcr.io/${{ github.repository }}/llm-service:latest || true
+          trivy image --format sarif --output image-scan-results.sarif ghcr.io/${{ github.repository }}/agent-core:latest || true
+
+      - name: Upload image scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "image-scan-results.sarif"
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [go, rust, python, javascript]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Go security audit
+        if: matrix.language == 'go'
+        run: |
+          go install github.com/securecodewarrior/github-action-add-sarif@latest
+          cd go/orchestrator && go mod download && go list -json -deps ./... | nancy sleuth
+          cd ../api-gateway && go mod download && go list -json -deps ./... | nancy sleuth
+
+      - name: Setup Rust
+        if: matrix.language == 'rust'
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Rust security audit
+        if: matrix.language == 'rust'
+        run: |
+          cargo install cargo-audit
+          cd rust/agent-core && cargo audit
+
+      - name: Setup Python
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Python security audit
+        if: matrix.language == 'python'
+        run: |
+          pip install safety bandit
+          cd python/llm-service
+          safety check -r requirements.txt
+          bandit -r src/ -f json -o bandit-results.json || true
+
+      - name: Setup Node.js
+        if: matrix.language == 'javascript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: JavaScript security audit
+        if: matrix.language == 'javascript'
+        run: |
+          cd frontend
+          npm audit --audit-level high
