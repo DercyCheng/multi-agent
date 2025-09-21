@@ -33,6 +33,7 @@ from src.middleware.auth import AuthMiddleware
 from src.middleware.rate_limit import RateLimitMiddleware
 from src.middleware.metrics import MetricsMiddleware
 from src.utils.logger import setup_logging
+from datetime import datetime
 
 # Global instances
 model_router: ModelRouter = None
@@ -47,67 +48,79 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Startup
     logging.info("Starting Multi-Agent LLM Service")
-    
     try:
         # Initialize core components
         settings = Settings()
-        
+
         # Setup distributed tracing
         if settings.tracing.enabled:
             setup_tracing(settings)
-        
+
         # Initialize model router
         model_router = ModelRouter(settings.models)
         await model_router.initialize()
-        
+
         # Initialize context engine
         context_engine = ContextEngine(settings.context)
         await context_engine.initialize()
-        
+
         # Initialize token manager
         token_manager = TokenManager(settings.tokens)
         await token_manager.initialize()
-        
+
         # Initialize MCP client
         mcp_client = MCPClient(settings.mcp)
         await mcp_client.initialize()
-        
+
         # Store in app state
         app.state.model_router = model_router
         app.state.context_engine = context_engine
         app.state.token_manager = token_manager
         app.state.mcp_client = mcp_client
         app.state.settings = settings
-        
+
         logging.info("LLM Service initialized successfully")
-        
+
         feature_flags = FeatureFlagManager()
         # Example: seed flags from env/settings if desired
         await feature_flags.set_flag("ollama.enabled", settings.models.ollama.enabled)
+        # Seed cron flag (default disabled)
+        await feature_flags.set_flag("cron.enabled", False)
+
+        # Store feature flags in app state
+        app.state.feature_flags = feature_flags
+
+        # Start background cron worker
+        app.state._cron_task = asyncio.create_task(_cron_worker(app))
+
         yield
-        
+
     except Exception as e:
         logging.error(f"Failed to initialize LLM Service: {e}")
         raise
-    
-    # Shutdown
-        app.state.feature_flags = feature_flags
-    logging.info("Shutting down Multi-Agent LLM Service")
-    
-    try:
-        if mcp_client:
-            await mcp_client.shutdown()
-        if token_manager:
-            await token_manager.shutdown()
-        if context_engine:
-            await context_engine.shutdown()
-        if model_router:
-            await model_router.shutdown()
-            
-        logging.info("LLM Service shutdown completed")
-        
-    except Exception as e:
-        logging.error(f"Error during shutdown: {e}")
+    finally:
+        # Shutdown
+        logging.info("Shutting down Multi-Agent LLM Service")
+
+        try:
+            # Cancel background task if running
+            cron_task = getattr(app.state, "_cron_task", None)
+            if cron_task:
+                cron_task.cancel()
+
+            if mcp_client:
+                await mcp_client.shutdown()
+            if token_manager:
+                await token_manager.shutdown()
+            if context_engine:
+                await context_engine.shutdown()
+            if model_router:
+                await model_router.shutdown()
+
+            logging.info("LLM Service shutdown completed")
+
+        except Exception as e:
+            logging.error(f"Error during shutdown: {e}")
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application"""
@@ -152,6 +165,25 @@ def create_app() -> FastAPI:
         )
     
     return app
+
+
+async def _cron_worker(app: FastAPI):
+    """Simple background worker that runs when feature flag 'cron.enabled' is true."""
+    logger = logging.getLogger("cron")
+    while True:
+        try:
+            feature_flags: FeatureFlagManager = getattr(app.state, "feature_flags", None)
+            if feature_flags:
+                enabled = await feature_flags.get_flag("cron.enabled")
+                if enabled:
+                    # Run a sample cron job — in real usage this would trigger scheduled tasks
+                    logger.info(f"[cron] Running scheduled task at {datetime.utcnow().isoformat()} UTC")
+                    # Example: call a health endpoint or cleanup routine; here we just sleep briefly
+                    await asyncio.sleep(0.1)
+            await asyncio.sleep(5)
+        except Exception:
+            logger.exception("Error in cron worker")
+
 
 def setup_tracing(settings: Settings):
     """Setup distributed tracing"""
